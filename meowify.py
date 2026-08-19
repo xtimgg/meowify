@@ -20081,7 +20081,7 @@ class VirtualList {
       this._renderChunkRaf = requestAnimationFrame(runChunk);
     }
 
-    if (this._nodes.size > 0) _barHeightCacheDirty = true;
+    if (this._nodes.size > 0) _invalidateBarCache();
   }
 
   _onScroll() {
