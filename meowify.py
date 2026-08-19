@@ -106,11 +106,12 @@ def _subrun(args, **kw):
     return subprocess.run(args, **kw)
 
 # ── motionui paths ─────────────────────────────────────────────────────────────
+_MU_REQUIRED = {"motionui.js", "components.css", "theme.css"}
+
 def motionui_dir():
-    candidates = []
     # 1. sibling dir (dev / portable)
-    candidates.append(Path(__file__).parent / "motionui")
-    # 2. platform standard location
+    candidates = [Path(__file__).parent / "motionui"]
+    # 2. platform preferred install location (index 1 = where installer puts it)
     if sys.platform == 'win32':
         base = Path(os.environ.get('LOCALAPPDATA', Path.home() / "AppData" / "Local"))
         candidates.append(base / "Programs" / "motionui")
@@ -119,9 +120,11 @@ def motionui_dir():
         candidates.append(Path.home() / ".local" / "lib" / "motionui")
         candidates.append(Path.home() / ".local" / "share" / "motionui")
     for p in candidates:
-        if (p / "motionui.js").exists():
+        if all((p / f).exists() for f in _MU_REQUIRED):
             return str(p), False
-    return str(candidates[1]), True   # return expected install path + missing flag
+    # return the preferred install path so the installer/popup knows where to put files
+    install_target = candidates[1] if len(candidates) > 1 else candidates[0]
+    return str(install_target), True
 
 MOTIONUI_DIR, MU_MISSING = motionui_dir()
 
