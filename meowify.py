@@ -9532,7 +9532,14 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
   width:4px;border-radius:1px;
   background:var(--color-primary);
   transform-origin:bottom;
+  height:14px;
 }
+@keyframes _bar0{0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.21)}}
+@keyframes _bar1{0%,100%{transform:scaleY(0.55)}36%{transform:scaleY(1)}86%{transform:scaleY(0.21)}}
+@keyframes _bar2{0%,100%{transform:scaleY(0.21)}72%{transform:scaleY(1)}}
+.song-row.playing:not(.paused) .snum-bar:nth-child(1){animation:_bar0 1.9s ease-in-out infinite}
+.song-row.playing:not(.paused) .snum-bar:nth-child(2){height:18px;animation:_bar1 1.9s ease-in-out infinite}
+.song-row.playing:not(.paused) .snum-bar:nth-child(3){animation:_bar2 1.9s ease-in-out infinite}
 .song-row.playing:not(.paused):not(:hover) .snum-bars{opacity:1}
 .song-row.playing:not(.paused):not(:hover) .snum-num{opacity:0}
 .song-row.playing:not(.paused):not(:hover) .snum-play{opacity:0}
