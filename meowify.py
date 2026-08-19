@@ -18410,9 +18410,9 @@ function _snumBars() {
   // 3 bars: low / mid / high - rendered as inline SVG driven by CSS animation
   // actual animation values are overridden by JS when analyser data is available
   return `<div class="snum-bars" id="snum-bars-live">
-    <div class="snum-bar" id="sbar-0" style="height:6px"></div>
-    <div class="snum-bar" id="sbar-1" style="height:6px"></div>
-    <div class="snum-bar" id="sbar-2" style="height:6px"></div>
+    <div class="snum-bar" id="sbar-0" style="height:14px"></div>
+    <div class="snum-bar" id="sbar-1" style="height:18px"></div>
+    <div class="snum-bar" id="sbar-2" style="height:14px"></div>
   </div>`;
 }
 
