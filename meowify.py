@@ -9534,12 +9534,12 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
   transform-origin:bottom;
   height:14px;
 }
-@keyframes _bar0{0%,100%{transform:scaleY(0.21)}50%{transform:scaleY(0.4)}}
-@keyframes _bar1{0%,100%{transform:scaleY(0.17)}36%{transform:scaleY(0.4)}86%{transform:scaleY(0.17)}}
-@keyframes _bar2{0%,100%{transform:scaleY(0.21)}72%{transform:scaleY(0.4)}}
-.song-row.playing:not(.paused) .snum-bar:nth-child(1){animation:_bar0 0.65s ease-in-out infinite}
-.song-row.playing:not(.paused) .snum-bar:nth-child(2){animation:_bar1 0.65s ease-in-out infinite}
-.song-row.playing:not(.paused) .snum-bar:nth-child(3){animation:_bar2 0.65s ease-in-out infinite}
+@keyframes _bar0{0%,100%{height:3px}50%{height:6px}}
+@keyframes _bar1{0%,100%{height:3px}36%{height:7px}86%{height:3px}}
+@keyframes _bar2{0%,100%{height:3px}72%{height:6px}}
+.song-row.playing:not(.paused) .snum-bar:nth-child(1){animation:_bar0 1.9s ease-in-out infinite}
+.song-row.playing:not(.paused) .snum-bar:nth-child(2){animation:_bar1 1.9s ease-in-out infinite}
+.song-row.playing:not(.paused) .snum-bar:nth-child(3){animation:_bar2 1.9s ease-in-out infinite}
 .song-row.playing:not(.paused):not(:hover) .snum-bars{opacity:1}
 .song-row.playing:not(.paused):not(:hover) .snum-num{opacity:0}
 .song-row.playing:not(.paused):not(:hover) .snum-play{opacity:0}
