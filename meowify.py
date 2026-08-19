@@ -9528,12 +9528,11 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
   width:22px;height:22px;justify-content:center;padding-bottom:2px;
   opacity:0;transition:opacity var(--dur-2);
 }
-.snum-bar{
-  width:4px;border-radius:1px;
-  background:var(--color-primary);
-  transform-origin:bottom;
-  height:14px;
-}
+  .snum-bar{
+    width:4px;border-radius:1px;
+    background:var(--color-primary);
+    height:3px;
+  }
 @keyframes _bar0{0%,100%{height:3px}50%{height:6px}}
 @keyframes _bar1{0%,100%{height:3px}36%{height:7px}86%{height:3px}}
 @keyframes _bar2{0%,100%{height:3px}72%{height:6px}}
