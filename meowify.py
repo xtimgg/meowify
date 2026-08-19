@@ -9523,6 +9523,16 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
 .song-row:hover .snum-num{opacity:0}
 .song-row:hover .snum-play{opacity:1}
 }
+@property --bar-amp {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.5;
+}
+@property --bar-amp-mid {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.5;
+}
 :root{
   --bar-dur: 1.9s;
   --bar-amp: 0.5;
