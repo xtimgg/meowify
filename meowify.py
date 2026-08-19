@@ -4145,8 +4145,15 @@ def api_batch_speed_override():
 @app.route('/')
 def index(): return _get_html(), 200, {'Content-Type':'text/html; charset=utf-8'}
 
+_MU_STUB_CSS = "*, *::before, *::after { box-sizing: border-box; } body { background: #111; color: #eee; font-family: sans-serif; }"
+_MU_STUB_JS  = "console.warn('motionui not found — install from https://github.com/xtimgg/motionui');"
+
 @app.route('/mu/<path:fn>')
 def mu_static(fn):
+    if MU_MISSING:
+        if fn.endswith('.css'): return _MU_STUB_CSS, 200, {'Content-Type': 'text/css'}
+        if fn.endswith('.js'):  return _MU_STUB_JS,  200, {'Content-Type': 'application/javascript'}
+        return '', 404
     p = (Path(MOTIONUI_DIR)/fn).resolve()
     base = Path(MOTIONUI_DIR).resolve()
     if not p.exists() or not (p == base or base in p.parents): return '', 404
