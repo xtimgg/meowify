@@ -107,15 +107,23 @@ def _subrun(args, **kw):
 
 # ── motionui paths ─────────────────────────────────────────────────────────────
 def motionui_dir():
-    p = Path(__file__).parent / "motionui"
-    if p.exists():
-        return str(p)
+    candidates = []
+    # 1. sibling dir (dev / portable)
+    candidates.append(Path(__file__).parent / "motionui")
+    # 2. platform standard location
     if sys.platform == 'win32':
         base = Path(os.environ.get('LOCALAPPDATA', Path.home() / "AppData" / "Local"))
-        return str(base / "meowify" / "motionui")
-    return str(Path.home() / ".local" / "share" / "meowify" / "motionui")
+        candidates.append(base / "Programs" / "motionui")
+        candidates.append(base / "motionui")          # legacy fallback
+    else:
+        candidates.append(Path.home() / ".local" / "lib" / "motionui")
+        candidates.append(Path.home() / ".local" / "share" / "motionui")
+    for p in candidates:
+        if (p / "motionui.js").exists():
+            return str(p), False
+    return str(candidates[1]), True   # return expected install path + missing flag
 
-MOTIONUI_DIR = motionui_dir()
+MOTIONUI_DIR, MU_MISSING = motionui_dir()
 
 # ── optional: mutagen for metadata/cover art ───────────────────────────────────
 try:
