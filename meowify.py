@@ -15512,7 +15512,6 @@ function _getColTpl(cols) {
 
 function renderLibrary(){
   const _rlT = CFG.perf_overlay ? performance.now() : 0;
-  _barHeightCache = null; _barHeightCacheDirty = true;
   S.libSearch = S.globalSearch || S.libSearch || '';
   const vc=document.getElementById('vc');
   const _sortFields=[['added_at','Date'],['title','Title'],['artist','Artist'],['play_count','Plays'],['duration','Duration']];
