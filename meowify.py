@@ -15129,18 +15129,12 @@ function updatePlayerUI(song) {
 // ── live bar analyser for song list ──────────────────────────────────────────
 let _barAnalyser   = null;
 let _barFreqBuf    = null;
-// smoothed bar heights 0-1 for [low, mid, high]
 let _barSmooth     = [0, 0, 0];
-const BAR_LERP     = 0.22;
-const BAR_MAX_H    = 18; // px, middle bar
-const BAR_SIDE_MAX = 14; // px, outer bars
+const BAR_LERP     = 0.18;
+let _barInterval   = null;
+const _barRoot     = document.documentElement.style;
 
 function _ensureBarAnalyser() { _ensureAnalyser(); }
-
-let _barPhase = 0;
-const BAR_WAVE_SPEED = 0.055;  // how fast the idle wave cycles (per 60fps frame)
-const BAR_WAVE_AMP   = 0.55;   // 0-1, how tall the idle wave gets
-const BAR_OFFSETS    = [0, Math.PI * 0.72, Math.PI * 1.44]; // phase offsets per bar
 function _tickBarsInner(_skipDom) {
   const barSettled = !S.isPlaying || !_barAnalyser || !_barFreqBuf;
   if (_skipDom && !barSettled) {
