@@ -17478,7 +17478,6 @@ function _makeQueueRow(s, i) {
 }
 
 function renderQueueSidebar() {
-  _barHeightCacheDirty = true;
   const inner = document.getElementById('queue-inner');
   if (!inner) return;
 
