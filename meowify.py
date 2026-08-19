@@ -15135,30 +15135,12 @@ let _barInterval   = null;
 const _barRoot     = document.documentElement.style;
 
 function _ensureBarAnalyser() { _ensureAnalyser(); }
-function _tickBarsInner(_skipDom) {
-  const barSettled = !S.isPlaying || !_barAnalyser || !_barFreqBuf;
-  if (_skipDom && !barSettled) {
-    // still advance the idle-wave phase so motion timing stays correct across
-    // skipped frames, but don't touch _barSmooth (audio-reactive) or the DOM.
-    // never taken when barSettled, so the existing reset/decay logic below
-    // still always runs on pause/settle transitions, exactly as before.
-    _barPhase += BAR_WAVE_SPEED * _animFramesRaw;
-    return true;
-  }
-  if (barSettled) {
-    // lerp to zero when not playing
-    let anyMoving = false;
-    for (let i = 0; i < 3; i++) {
-      if (_barSmooth[i] > 0.005) { _barSmooth[i] *= (1 - _frameRate(BAR_LERP)); anyMoving = true; }
-      else _barSmooth[i] = 0;
-    }
-    _barPhase = 0; // reset so next play starts clean
-    _applyBarHeights();
-    return anyMoving; // tells shared loop whether to keep ticking
-  }
-  _barPhase += BAR_WAVE_SPEED * _animFramesRaw;
+function _tickBarsInner(_skipDom) { return false; } // no-op: bars now CSS-driven
+function _invalidateBarCache() {}                   // no-op: no cache needed
+
+function _applyBarCssVars() {
+  if (!_barAnalyser || !_barFreqBuf) return;
   _barAnalyser.getByteFrequencyData(_barFreqBuf);
-  // low: bins 0-10, mid: 11-40, high: 41-90
   let low = 0, mid = 0, high = 0;
   for (let i = 0;  i <= 10; i++) low  += _barFreqBuf[i];
   for (let i = 11; i <= 40; i++) mid  += _barFreqBuf[i];
@@ -15166,53 +15148,33 @@ function _tickBarsInner(_skipDom) {
   low  /= (11 * 255);
   mid  /= (30 * 255);
   high /= (50 * 255);
-  _barSmooth[0] += (low  - _barSmooth[0]) * _frameRate(BAR_LERP);
-  _barSmooth[1] += (mid  - _barSmooth[1]) * _frameRate(BAR_LERP);
-  _barSmooth[2] += (high - _barSmooth[2]) * _frameRate(BAR_LERP);
-  // fake wave: sine per bar with staggered phase offsets
-  // real signal scales the wave amplitude - loud music = big movement, silence = gentle idle
-  for (let i = 0; i < 3; i++) {
-    const wave = (Math.sin(_barPhase + BAR_OFFSETS[i]) * 0.5 + 0.5) * BAR_WAVE_AMP;
-    const real = _barSmooth[i];
-    // blend: wave provides baseline motion, real signal amplifies it
-    // at real=0 you get gentle wave*0.35; at real=1 wave goes full + real adds on top
-    _barSmooth[i] = wave * (0.35 + real * 0.65) + real * 0.55;
-    _barSmooth[i] = Math.min(1, _barSmooth[i]);
-  }
-  _applyBarHeights();
-  return true; // still active
-}
-
-let _barHeightCache = null;
-let _barHeightCacheDirty = true;
-function _invalidateBarCache() { _barHeightCacheDirty = true; }
-function _applyBarHeights() {
-  // re-query only when dirty; invalidated by renderLibrary, renderQueueSidebar,
-  // and VirtualList row recycling via _invalidateBarCache()
-  if (_barHeightCacheDirty || !_barHeightCache) {
-    _barHeightCache = Array.from(document.querySelectorAll('.snum-bars'));
-    _barHeightCacheDirty = false;
-  }
-  const minH = 3;
-  const h0 = Math.max(minH, _barSmooth[0] * BAR_SIDE_MAX) + 'px';
-  const h1 = Math.max(minH, _barSmooth[1] * BAR_MAX_H)  + 'px';
-  const h2 = Math.max(minH, _barSmooth[2] * BAR_SIDE_MAX) + 'px';
-  for (let i = 0; i < _barHeightCache.length; i++) {
-    const bars = _barHeightCache[i].children;
-    if (bars.length < 3) continue;
-    bars[0].style.height = h0;
-    bars[1].style.height = h1;
-    bars[2].style.height = h2;
-  }
+  _barSmooth[0] += (low  - _barSmooth[0]) * BAR_LERP;
+  _barSmooth[1] += (mid  - _barSmooth[1]) * BAR_LERP;
+  _barSmooth[2] += (high - _barSmooth[2]) * BAR_LERP;
+  const sides = Math.min(1, (_barSmooth[0] + _barSmooth[2]) * 0.5);
+  const mid_  = Math.min(1, _barSmooth[1]);
+  // speed: loud = fast (0.8s), quiet = slow (2.2s)
+  const energy = Math.min(1, (sides + mid_) * 0.5);
+  const dur = (2.2 - energy * 1.4).toFixed(3);
+  _barRoot.setProperty('--bar-amp',     sides.toFixed(3));
+  _barRoot.setProperty('--bar-amp-mid', mid_.toFixed(3));
+  _barRoot.setProperty('--bar-dur',     dur + 's');
 }
 
 function startBarTick() {
   _ensureAnalyser();
-  _startSharedAnim();
+  if (_barInterval) return;
+  // add class to all bars to start CSS animation
+  document.querySelectorAll('.snum-bars').forEach(el => el.classList.add('bars-playing'));
+  _barInterval = setInterval(_applyBarCssVars, 100); // 10fps analyser reads
 }
 
 function stopBarTick() {
-  // no-op: shared loop handles deceleration and self-cancels
+  if (_barInterval) { clearInterval(_barInterval); _barInterval = null; }
+  document.querySelectorAll('.snum-bars').forEach(el => el.classList.remove('bars-playing'));
+  _barRoot.setProperty('--bar-amp', '0');
+  _barRoot.setProperty('--bar-amp-mid', '0');
+  _barRoot.setProperty('--bar-dur', '2.2s');
 }
 
 let _lastHighlightId = null;
