@@ -9523,34 +9523,6 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
 .song-row:hover .snum-num{opacity:0}
 .song-row:hover .snum-play{opacity:1}
 }
-@property --bar-amp {
-  syntax: '<number>';
-  inherits: true;
-  initial-value: 0.5;
-}
-@property --bar-amp-mid {
-  syntax: '<number>';
-  inherits: true;
-  initial-value: 0.5;
-}
-:root{
-  --bar-dur: 1.9s;
-  --bar-amp: 0.5;
-  --bar-amp-mid: 0.5;
-}
-@keyframes bar0{
-  0%,100%{transform:scaleY(calc(0.17 + var(--bar-amp) * 0.83))}
-  50%{transform:scaleY(calc(0.17 + var(--bar-amp) * 0.17))}
-}
-@keyframes bar1{
-  0%,100%{transform:scaleY(calc(0.17 + var(--bar-amp-mid) * 0.4))}
-  36%{transform:scaleY(calc(0.17 + var(--bar-amp-mid) * 0.83))}
-  86%{transform:scaleY(calc(0.17 + var(--bar-amp-mid) * 0.17))}
-}
-@keyframes bar2{
-  0%,100%{transform:scaleY(calc(0.17 + var(--bar-amp) * 0.17))}
-  72%{transform:scaleY(calc(0.17 + var(--bar-amp) * 0.83))}
-}
 .snum-bars{
   position:absolute;display:flex;align-items:flex-end;gap:2px;
   width:22px;height:22px;justify-content:center;padding-bottom:2px;
@@ -9560,21 +9532,6 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
   width:4px;border-radius:1px;
   background:var(--color-primary);
   transform-origin:bottom;
-  transition:--bar-amp 0.3s, --bar-amp-mid 0.3s, --bar-dur 0.5s;
-}
-.snum-bars.bars-playing .snum-bar:nth-child(1){
-  height:14px;
-  animation:bar0 var(--bar-dur) ease-in-out infinite;
-}
-.snum-bars.bars-playing .snum-bar:nth-child(2){
-  height:18px;
-  animation:bar1 var(--bar-dur) ease-in-out infinite;
-  animation-delay:calc(var(--bar-dur) * -0.36);
-}
-.snum-bars.bars-playing .snum-bar:nth-child(3){
-  height:14px;
-  animation:bar2 var(--bar-dur) ease-in-out infinite;
-  animation-delay:calc(var(--bar-dur) * -0.72);
 }
 .song-row.playing:not(.paused):not(:hover) .snum-bars{opacity:1}
 .song-row.playing:not(.paused):not(:hover) .snum-num{opacity:0}
@@ -15139,18 +15096,42 @@ function updatePlayerUI(song) {
 // ── live bar analyser for song list ──────────────────────────────────────────
 let _barAnalyser   = null;
 let _barFreqBuf    = null;
+// smoothed bar heights 0-1 for [low, mid, high]
 let _barSmooth     = [0, 0, 0];
-const BAR_LERP     = 0.18;
-let _barInterval   = null;
-const _barRoot     = document.documentElement.style;
+const BAR_LERP     = 0.22;
+const BAR_MAX_H    = 18; // px, middle bar
+const BAR_SIDE_MAX = 14; // px, outer bars
 
 function _ensureBarAnalyser() { _ensureAnalyser(); }
-function _tickBarsInner(_skipDom) { return false; } // no-op: bars now CSS-driven
-function _invalidateBarCache() {}                   // no-op: no cache needed
 
-function _applyBarCssVars() {
-  if (!_barAnalyser || !_barFreqBuf) return;
+let _barPhase = 0;
+const BAR_WAVE_SPEED = 0.055;  // how fast the idle wave cycles (per 60fps frame)
+const BAR_WAVE_AMP   = 0.55;   // 0-1, how tall the idle wave gets
+const BAR_OFFSETS    = [0, Math.PI * 0.72, Math.PI * 1.44]; // phase offsets per bar
+function _tickBarsInner(_skipDom) {
+  const barSettled = !S.isPlaying || !_barAnalyser || !_barFreqBuf;
+  if (_skipDom && !barSettled) {
+    // still advance the idle-wave phase so motion timing stays correct across
+    // skipped frames, but don't touch _barSmooth (audio-reactive) or the DOM.
+    // never taken when barSettled, so the existing reset/decay logic below
+    // still always runs on pause/settle transitions, exactly as before.
+    _barPhase += BAR_WAVE_SPEED * _animFramesRaw;
+    return true;
+  }
+  if (barSettled) {
+    // lerp to zero when not playing
+    let anyMoving = false;
+    for (let i = 0; i < 3; i++) {
+      if (_barSmooth[i] > 0.005) { _barSmooth[i] *= (1 - _frameRate(BAR_LERP)); anyMoving = true; }
+      else _barSmooth[i] = 0;
+    }
+    _barPhase = 0; // reset so next play starts clean
+    _applyBarHeights();
+    return anyMoving; // tells shared loop whether to keep ticking
+  }
+  _barPhase += BAR_WAVE_SPEED * _animFramesRaw;
   _barAnalyser.getByteFrequencyData(_barFreqBuf);
+  // low: bins 0-10, mid: 11-40, high: 41-90
   let low = 0, mid = 0, high = 0;
   for (let i = 0;  i <= 10; i++) low  += _barFreqBuf[i];
   for (let i = 11; i <= 40; i++) mid  += _barFreqBuf[i];
@@ -15158,33 +15139,53 @@ function _applyBarCssVars() {
   low  /= (11 * 255);
   mid  /= (30 * 255);
   high /= (50 * 255);
-  _barSmooth[0] += (low  - _barSmooth[0]) * BAR_LERP;
-  _barSmooth[1] += (mid  - _barSmooth[1]) * BAR_LERP;
-  _barSmooth[2] += (high - _barSmooth[2]) * BAR_LERP;
-  const sides = Math.min(1, (_barSmooth[0] + _barSmooth[2]) * 0.5);
-  const mid_  = Math.min(1, _barSmooth[1]);
-  // speed: loud = fast (0.8s), quiet = slow (2.2s)
-  const energy = Math.min(1, (sides + mid_) * 0.5);
-  const dur = (2.2 - energy * 1.4).toFixed(3);
-  _barRoot.setProperty('--bar-amp',     sides.toFixed(3));
-  _barRoot.setProperty('--bar-amp-mid', mid_.toFixed(3));
-  _barRoot.setProperty('--bar-dur',     dur + 's');
+  _barSmooth[0] += (low  - _barSmooth[0]) * _frameRate(BAR_LERP);
+  _barSmooth[1] += (mid  - _barSmooth[1]) * _frameRate(BAR_LERP);
+  _barSmooth[2] += (high - _barSmooth[2]) * _frameRate(BAR_LERP);
+  // fake wave: sine per bar with staggered phase offsets
+  // real signal scales the wave amplitude - loud music = big movement, silence = gentle idle
+  for (let i = 0; i < 3; i++) {
+    const wave = (Math.sin(_barPhase + BAR_OFFSETS[i]) * 0.5 + 0.5) * BAR_WAVE_AMP;
+    const real = _barSmooth[i];
+    // blend: wave provides baseline motion, real signal amplifies it
+    // at real=0 you get gentle wave*0.35; at real=1 wave goes full + real adds on top
+    _barSmooth[i] = wave * (0.35 + real * 0.65) + real * 0.55;
+    _barSmooth[i] = Math.min(1, _barSmooth[i]);
+  }
+  _applyBarHeights();
+  return true; // still active
+}
+
+let _barHeightCache = null;
+let _barHeightCacheDirty = true;
+function _invalidateBarCache() { _barHeightCacheDirty = true; }
+function _applyBarHeights() {
+  // re-query only when dirty; invalidated by renderLibrary, renderQueueSidebar,
+  // and VirtualList row recycling via _invalidateBarCache()
+  if (_barHeightCacheDirty || !_barHeightCache) {
+    _barHeightCache = Array.from(document.querySelectorAll('.snum-bars'));
+    _barHeightCacheDirty = false;
+  }
+  const minH = 3;
+  const h0 = Math.max(minH, _barSmooth[0] * BAR_SIDE_MAX) + 'px';
+  const h1 = Math.max(minH, _barSmooth[1] * BAR_MAX_H)  + 'px';
+  const h2 = Math.max(minH, _barSmooth[2] * BAR_SIDE_MAX) + 'px';
+  for (let i = 0; i < _barHeightCache.length; i++) {
+    const bars = _barHeightCache[i].children;
+    if (bars.length < 3) continue;
+    bars[0].style.height = h0;
+    bars[1].style.height = h1;
+    bars[2].style.height = h2;
+  }
 }
 
 function startBarTick() {
   _ensureAnalyser();
-  if (_barInterval) return;
-  // add class to all bars to start CSS animation
-  document.querySelectorAll('.snum-bars').forEach(el => el.classList.add('bars-playing'));
-  _barInterval = setInterval(_applyBarCssVars, 100); // 10fps analyser reads
+  _startSharedAnim();
 }
 
 function stopBarTick() {
-  if (_barInterval) { clearInterval(_barInterval); _barInterval = null; }
-  document.querySelectorAll('.snum-bars').forEach(el => el.classList.remove('bars-playing'));
-  _barRoot.setProperty('--bar-amp', '0');
-  _barRoot.setProperty('--bar-amp-mid', '0');
-  _barRoot.setProperty('--bar-dur', '2.2s');
+  // no-op: shared loop handles deceleration and self-cancels
 }
 
 let _lastHighlightId = null;
@@ -15512,6 +15513,7 @@ function _getColTpl(cols) {
 
 function renderLibrary(){
   const _rlT = CFG.perf_overlay ? performance.now() : 0;
+  _barHeightCache = null; _barHeightCacheDirty = true;
   S.libSearch = S.globalSearch || S.libSearch || '';
   const vc=document.getElementById('vc');
   const _sortFields=[['added_at','Date'],['title','Title'],['artist','Artist'],['play_count','Plays'],['duration','Duration']];
@@ -17458,8 +17460,8 @@ function _makeQueueRow(s, i) {
   el.style.cssText = 'grid-template-columns:28px 40px 1fr auto 24px;gap:8px;padding:6px 8px;align-items:center;display:grid;border-radius:var(--radius-md);cursor:pointer;width:100%;min-width:0;transition:background var(--dur-2) var(--ease-out)';
   el.innerHTML =
     '<div class="snum" style="position:relative;display:flex;align-items:center;justify-content:center">' +
-        '<span class=\\\"snum-num\\\">' + (isCur ? (S.isPlaying ? '<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" style="display:block"><polygon points="3,2 21,12 3,22"/></svg>' : (i + 1)) : i + 1) + '</span>' +
-        (isCur ? '<div class=\\\"snum-bars' + (S.isPlaying ? ' bars-playing' : '') + '\\\" style=\\\"position:absolute;display:flex;align-items:flex-end;gap:2px;width:22px;height:22px;justify-content:center;padding-bottom:2px;opacity:' + (S.isPlaying ? '1' : '0') + '\\\"><div class=\\\"snum-bar\\\" style=\\\"width:4px;border-radius:1px;background:var(--color-primary);height:6px\\\"></div><div class=\\\"snum-bar\\\" style=\\\"width:4px;border-radius:1px;background:var(--color-primary);height:6px\\\"></div><div class=\\\"snum-bar\\\" style=\\\"width:4px;border-radius:1px;background:var(--color-primary);height:6px\\\"></div></div>' : '') +
+      '<span class=\"snum-num\">' + (isCur ? (S.isPlaying ? '<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" style="display:block"><polygon points="3,2 21,12 3,22"/></svg>' : (i + 1)) : i + 1) + '</span>' +
+      (isCur ? '<div class=\"snum-bars\" style=\"position:absolute;display:flex;align-items:flex-end;gap:2px;width:22px;height:22px;justify-content:center;padding-bottom:2px;opacity:' + (S.isPlaying ? '1' : '0') + '\"><div class=\"snum-bar\" style=\"width:4px;border-radius:1px;background:var(--color-primary);height:6px\"></div><div class=\"snum-bar\" style=\"width:4px;border-radius:1px;background:var(--color-primary);height:6px\"></div><div class=\"snum-bar\" style=\"width:4px;border-radius:1px;background:var(--color-primary);height:6px\"></div></div>' : '') +
     '</div>'
   + '<div class="sthumb" style="width:36px;height:36px;font-size:16px;background:var(--color-surface-container-high);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">' + cov + '</div>'
   + '<div class="sinfo" style="overflow:hidden"><div class="stitle">' + esc(s.title || 'untitled') + '</div>'
@@ -17478,6 +17480,7 @@ function _makeQueueRow(s, i) {
 }
 
 function renderQueueSidebar() {
+  _barHeightCacheDirty = true;
   const inner = document.getElementById('queue-inner');
   if (!inner) return;
 
@@ -18398,10 +18401,12 @@ async function downloadAllMissing(aid) {
 }
 
 function _snumBars() {
-  return `<div class="snum-bars${S.isPlaying ? ' bars-playing' : ''}" id="snum-bars-live">
-    <div class="snum-bar" style="height:6px"></div>
-    <div class="snum-bar" style="height:6px"></div>
-    <div class="snum-bar" style="height:6px"></div>
+  // 3 bars: low / mid / high - rendered as inline SVG driven by CSS animation
+  // actual animation values are overridden by JS when analyser data is available
+  return `<div class="snum-bars" id="snum-bars-live">
+    <div class="snum-bar" id="sbar-0" style="height:6px"></div>
+    <div class="snum-bar" id="sbar-1" style="height:6px"></div>
+    <div class="snum-bar" id="sbar-2" style="height:6px"></div>
   </div>`;
 }
 
@@ -20081,7 +20086,7 @@ class VirtualList {
       this._renderChunkRaf = requestAnimationFrame(runChunk);
     }
 
-    if (this._nodes.size > 0) _invalidateBarCache();
+    if (this._nodes.size > 0) _barHeightCacheDirty = true;
   }
 
   _onScroll() {
