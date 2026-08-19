@@ -15164,8 +15164,8 @@ function _tickBarsInner_unused(_skipDom) { // dead code, kept for reference
 
 let _barHeightCache = null;
 let _barHeightCacheDirty = true;
-function _invalidateBarCache() { _barHeightCacheDirty = true; }
-function _applyBarHeights() {
+function _invalidateBarCache_unused() { _barHeightCacheDirty = true; }
+function _applyBarHeights_unused() {
   // re-query only when dirty; invalidated by renderLibrary, renderQueueSidebar,
   // and VirtualList row recycling via _invalidateBarCache()
   if (_barHeightCacheDirty || !_barHeightCache) {
