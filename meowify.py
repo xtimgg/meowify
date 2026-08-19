@@ -15115,13 +15115,12 @@ let _barPhase = 0;
 const BAR_WAVE_SPEED = 0.055;  // how fast the idle wave cycles (per 60fps frame)
 const BAR_WAVE_AMP   = 0.55;   // 0-1, how tall the idle wave gets
 const BAR_OFFSETS    = [0, Math.PI * 0.72, Math.PI * 1.44]; // phase offsets per bar
-function _tickBarsInner(_skipDom) {
+function _tickBarsInner(_skipDom) { return false; } // css-driven
+function _invalidateBarCache() {}
+function _applyBarHeights() {}
+function _tickBarsInner_unused(_skipDom) { // dead code, kept for reference
   const barSettled = !S.isPlaying || !_barAnalyser || !_barFreqBuf;
   if (_skipDom && !barSettled) {
-    // still advance the idle-wave phase so motion timing stays correct across
-    // skipped frames, but don't touch _barSmooth (audio-reactive) or the DOM.
-    // never taken when barSettled, so the existing reset/decay logic below
-    // still always runs on pause/settle transitions, exactly as before.
     _barPhase += BAR_WAVE_SPEED * _animFramesRaw;
     return true;
   }
