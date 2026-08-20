@@ -9529,7 +9529,7 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
   overflow:visible;opacity:0;transition:opacity var(--dur-2);
 }
   .snum-bar{
-    width:4px;border-radius:1px;
+    width:4px;border-radius:2px;
     background:var(--color-primary);
     height:3px;
   }
