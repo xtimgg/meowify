@@ -19179,22 +19179,16 @@ async function _runPerfTest() {
 
   function enableAll() { _PERF_MODULES.forEach(m => { try { m.enable?.(); } catch(e) {} }); }
 
-  out.innerHTML = '<div style="color:var(--color-on-surface-variant);font-size:12px;margin-bottom:8px">preparing — ensuring song is playing…</div>';
+  out.innerHTML = '<div style="color:var(--color-on-surface-variant);font-size:12px;margin-bottom:8px">checking playback state…</div>';
 
-  // ensure song is playing before starting
   if (!S.isPlaying) {
-    const song = S.viewSongs?.[0] || S.queue?.[0];
-    if (song) {
-      playFromList(S.viewSongs?.length ? S.viewSongs : S.queue, 0);
-      await new Promise(r => setTimeout(r, 4000)); // wait for audio to start + stabilise
-    } else {
-      out.innerHTML = '<div style="color:var(--color-error);font-size:12px">no songs loaded — open your library first, then run the test</div>';
-      _perfTestRunning = false;
-      return;
-    }
-  } else {
-    await new Promise(r => setTimeout(r, 1500)); // already playing, short settle
+    out.innerHTML = '<div style="color:var(--color-error);font-size:12px">start playing a song first, let it run for ~10s to stabilise, then hit run test</div>';
+    _perfTestRunning = false;
+    return;
   }
+
+  // short settle to make sure we're past any song-start spike
+  await new Promise(r => setTimeout(r, 2000));
 
   enableAll();
   const results = [];
