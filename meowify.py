@@ -14687,16 +14687,23 @@ let _wavyAmpTarget = WAVY_AMP_IDLE;
 const WAVY_AMP_LERP = 0.06;
 
 function updateWavySeek(prog) {
-  const wrap = document.getElementById('wavy-seek-wrap');
-  const trackPath = document.getElementById('wavy-track-path');
-  const fillPath = document.getElementById('wavy-fill-path');
-  const thumb = document.getElementById('wavy-seek-thumb');
-  const svg = document.getElementById('wavy-seek-svg');
-  if (!wrap || !trackPath) return;
+  if (!_wavyElCache) {
+    const wrap = document.getElementById('wavy-seek-wrap');
+    if (!wrap) return;
+    const trackPath = document.getElementById('wavy-track-path');
+    if (!trackPath) return;
+    _wavyElCache = {
+      wrap, trackPath,
+      fillPath: document.getElementById('wavy-fill-path'),
+      thumb:    document.getElementById('wavy-seek-thumb'),
+      svg:      document.getElementById('wavy-seek-svg'),
+    };
+  }
+  const { wrap, trackPath, fillPath, thumb, svg } = _wavyElCache;
 
   if (_wavyW <= 0) { const rect = wrap.getBoundingClientRect(); if (rect.width > 0) _wavyW = rect.width; }
   _wavyH = 28;
-  svg.setAttribute('viewBox', `0 0 ${_wavyW} ${_wavyH}`);
+  if (_wavyW !== _wavyLastW) { svg.setAttribute('viewBox', `0 0 ${_wavyW} ${_wavyH}`); _wavyLastW = _wavyW; }
 
   // smooth amplitude transition
   _wavyAmpTarget = S.isPlaying ? WAVY_AMP_PLAY : WAVY_AMP_IDLE;
@@ -25389,7 +25396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       requestAnimationFrame(() => {
         updateProg(_rPos, _rDur);
         if (CFG.wavy_seekbar) {
-          _wavyW = 0; _mobNpWavyW = 0; // force re-measure on both seekbars
+          _wavyW = 0; _mobNpWavyW = 0; _wavyLastW = -1; // force re-measure on both seekbars
           const _rFrac = _rDur > 0 ? _rPos / _rDur : 0;
           _wavyProgPct = _rFrac; // seed so rAF tick is correct before first play
           updateWavySeek(_rFrac);
