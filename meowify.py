@@ -19137,6 +19137,94 @@ function _setPerfOverlay(on) {
   }
 }
 
+// ── built-in perf test ───────────────────────────────────────────────────────
+const _PERF_MODULES = [
+  { id: 'baseline',     label: 'baseline (all enabled)',  disable: null, enable: null },
+  { id: 'sharedAnim',   label: 'shared anim rAF loop',    disable: () => { window._stopSharedAnim?.(); window._mpt_startSharedAnim = window._startSharedAnim; window._startSharedAnim = () => {}; }, enable: () => { if (window._mpt_startSharedAnim) window._startSharedAnim = window._mpt_startSharedAnim; window._startSharedAnim?.(); } },
+  { id: 'spiky',        label: 'spiky rot tick',          disable: () => { window._mpt_sI = window._spikyRotTickInner; window._mpt_sA = window._spikyRotAdvanceOnly; window._spikyRotTickInner = () => {}; window._spikyRotAdvanceOnly = () => {}; }, enable: () => { if (window._mpt_sI) window._spikyRotTickInner = window._mpt_sI; if (window._mpt_sA) window._spikyRotAdvanceOnly = window._mpt_sA; } },
+  { id: 'vol',          label: 'vol rot tick',            disable: () => { window._mpt_vI = window._volRotTickInner; window._mpt_vA = window._volRotAdvanceOnly; window._volRotTickInner = () => {}; window._volRotAdvanceOnly = () => {}; }, enable: () => { if (window._mpt_vI) window._volRotTickInner = window._mpt_vI; if (window._mpt_vA) window._volRotAdvanceOnly = window._mpt_vA; } },
+  { id: 'wavy',         label: 'wavy seekbar tick',       disable: () => { window._mpt_wI = window._wavyAnimTickInner; window._mpt_wA = window._wavyAdvanceOnly; window._wavyAnimTickInner = () => {}; window._wavyAdvanceOnly = () => {}; }, enable: () => { if (window._mpt_wI) window._wavyAnimTickInner = window._mpt_wI; if (window._mpt_wA) window._wavyAdvanceOnly = window._mpt_wA; } },
+  { id: 'bars',         label: 'bar tick + energy poll',  disable: () => { window._mpt_b = window._tickBarsInner; window._tickBarsInner = () => false; window.stopBarTick?.(); }, enable: () => { if (window._mpt_b) window._tickBarsInner = window._mpt_b; window.startBarTick?.(); } },
+  { id: 'progress',     label: 'progress ticker',         disable: () => { const e = window.engine; if (!e) return; e._stopProgress?.(); window._mpt_sp = e._startProgress?.bind(e); e._startProgress = () => {}; }, enable: () => { const e = window.engine; if (!e) return; if (window._mpt_sp) e._startProgress = window._mpt_sp; e._startProgress?.(); } },
+  { id: 'updateProg',   label: 'updateProg DOM writes',   disable: () => { window._mpt_up = window.updateProg; window.updateProg = () => {}; }, enable: () => { if (window._mpt_up) window.updateProg = window._mpt_up; } },
+  { id: 'highlights',   label: 'updateHighlights',        disable: () => { window._mpt_uh = window.updateHighlights; window.updateHighlights = () => {}; }, enable: () => { if (window._mpt_uh) window.updateHighlights = window._mpt_uh; } },
+  { id: 'mediaSession', label: 'mediaSession',            disable: () => { if (!('mediaSession' in navigator)) return; window._mpt_ms = navigator.mediaSession.setPositionState.bind(navigator.mediaSession); navigator.mediaSession.setPositionState = () => {}; }, enable: () => { if (window._mpt_ms) navigator.mediaSession.setPositionState = window._mpt_ms; } },
+  { id: 'audioCtx',     label: 'AudioContext (suspend)',  disable: () => { window.engine?.ctx?.suspend(); }, enable: () => { window.engine?.ctx?.resume(); } },
+];
+
+let _perfTestRunning = false;
+
+async function _runPerfTest() {
+  if (_perfTestRunning) return;
+  _perfTestRunning = true;
+
+  const out = document.getElementById('_mpt-out');
+  if (!out) { _perfTestRunning = false; return; }
+
+  const SETTLE_MS = 3000;
+  const SAMPLE_MS = 2000;
+  const SAMPLES = 3;
+
+  async function sample() {
+    // prime psutil cpu_percent (first call always returns 0)
+    await fetch('/api/perf-sample');
+    await new Promise(r => setTimeout(r, SAMPLE_MS));
+    let cpu = 0, mem = 0, ok = false;
+    for (let i = 0; i < SAMPLES; i++) {
+      const r = await fetch('/api/perf-sample').then(r => r.json()).catch(() => null);
+      if (r?.ok) { cpu += r.cpu; mem = r.mem_mb; ok = true; }
+      if (i < SAMPLES - 1) await new Promise(r => setTimeout(r, 500));
+    }
+    return ok ? { cpu: +(cpu / SAMPLES).toFixed(2), mem } : null;
+  }
+
+  // re-enable all first (clean state)
+  _PERF_MODULES.forEach(m => { try { m.enable?.(); } catch(e) {} });
+  const disabled = [];
+  const results = [];
+
+  out.innerHTML = '<div style="color:var(--color-on-surface-variant);font-size:12px;margin-bottom:8px">test running — do not interact with meowify during this test</div>';
+
+  for (let i = 0; i < _PERF_MODULES.length; i++) {
+    const m = _PERF_MODULES[i];
+    out.innerHTML += `<div id="_mpt-row-${m.id}" style="font-size:12px;color:var(--color-on-surface-variant);padding:2px 0">⏳ ${m.label}…</div>`;
+
+    if (m.disable) { try { m.disable(); disabled.push(m); } catch(e) {} }
+    await new Promise(r => setTimeout(r, SETTLE_MS));
+    const s = await sample();
+
+    const rowEl = document.getElementById('_mpt-row-' + m.id);
+    if (s) {
+      const cpuColor = s.cpu < 2 ? 'var(--color-primary)' : s.cpu < 6 ? '#ffd93d' : '#ff6b6b';
+      if (rowEl) rowEl.outerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid var(--color-outline-variant)">
+        <span style="color:var(--color-on-surface)">${m.label}</span>
+        <span style="color:${cpuColor};font-variant-numeric:tabular-nums;font-size:13px;font-weight:600">${s.cpu}% CPU</span>
+        <span style="color:var(--color-on-surface-variant);font-size:11px">${s.mem}MB</span>
+      </div>`;
+      results.push({ label: m.label, cpu: s.cpu, mem: s.mem });
+    } else {
+      if (rowEl) rowEl.outerHTML = `<div style="font-size:12px;color:var(--color-error);padding:2px 0">${m.label} — sample failed (psutil missing?)</div>`;
+    }
+  }
+
+  // re-enable all
+  disabled.reverse().forEach(m => { try { m.enable?.(); } catch(e) {} });
+
+  // summary: biggest drops
+  if (results.length > 1) {
+    const base = results[0]?.cpu || 0;
+    const best = [...results].sort((a, b) => a.cpu - b.cpu)[0];
+    out.innerHTML += `<div style="margin-top:10px;font-size:12px;color:var(--color-on-surface-variant)">
+      baseline: <b style="color:var(--color-on-surface)">${base}% CPU</b> →
+      lowest with <b style="color:var(--color-primary)">${best.label}</b> disabled: <b style="color:var(--color-primary)">${best.cpu}% CPU</b>
+      (−${(base - best.cpu).toFixed(2)}%)
+    </div>`;
+  }
+
+  out.innerHTML += `<div style="margin-top:8px"><button class="btn btn-out mu-ripple" style="font:var(--type-label-small);padding:4px 12px" onclick="_runPerfTest()">run again</button></div>`;
+  _perfTestRunning = false;
+}
+
 function _openPerfDrawer() {
   const el = document.getElementById('perf-drawer-sidebar');
   if (!el) return;
