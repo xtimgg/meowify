@@ -25172,6 +25172,10 @@ function renderSettings() {
             <div class="switch-track"><div class="switch-thumb"></div></div>
           </label>
         `)}
+        ${row('cpu impact test', 'disables modules one by one and samples webview2 cpu — play a song first, takes ~1 min', `
+          <button class="btn btn-out mu-ripple" style="font:var(--type-label-small);padding:4px 12px" onclick="_runPerfTest()">run test</button>
+        `)}
+        <div id="_mpt-out" style="padding:4px 0 8px"></div>
         ${CFG._platform === 'win32' ? row('window mode', 'webview = built-in chromium window; system browser = uses your existing brave/chrome as a lightweight app window (lower cpu)', `
           <div style="display:flex;gap:6px">
             ${[['webview','webview'],['system browser','system browser']].map(([v,label])=>`<button class="btn ${(CFG.win_use_webview!==false?'webview':'system browser')===v?'btn-filled':'btn-out'} mu-ripple" style="padding:4px 10px;font:var(--type-label-small)" onclick="_setWinMode('${v}')">${label}</button>`).join('')}
