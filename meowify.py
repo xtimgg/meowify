@@ -10971,8 +10971,8 @@ body.design-glassy .list-header.pinned::before{
         </div>
         <div id="wavy-seek-wrap" oncontextmenu="showSeekCtx(event)">
           <svg id="wavy-seek-svg" viewBox="0 0 400 28" preserveAspectRatio="none">
-            <path id="wavy-track-path" fill="none" stroke-linecap="round"/>
-            <path id="wavy-fill-path" fill="none" stroke-linecap="round"/>
+            <path id="wavy-track-path" fill="none" stroke-linecap="round" stroke-width="2.5" opacity="1"/>
+            <path id="wavy-fill-path" fill="none" stroke-linecap="round" stroke-width="2.5"/>
           </svg>
           <div id="wavy-seek-thumb"></div>
         </div>
