@@ -141,7 +141,7 @@ except ImportError:
 # ── settings ───────────────────────────────────────────────────────────────────
 _HOME   = Path(os.environ['MEOWIFY_DATA_DIR']) if 'MEOWIFY_DATA_DIR' in os.environ else Path.home() / ".local" / "share" / "meowify"
 _SCFG   = _HOME / "settings.json"
-_DEFS   = {"data_dir": str(_HOME), "gapless": True, "format": "mp3", "quality": "0", "crossfade": 0, "genius_token": "", "auto_genius": True, "volume": 0.8, "volume_norm": False, "target_lufs": -14, "theme_hue": 145, "theme_sat": 50, "theme_bri": 1.0, "ddg_genius": True, "prev_restarts": True, "dl_speed_single": "fast", "dl_speed_batch": "balanced", "spotify_local_dir": "", "auto_align_lyrics": False, "ui_design": "material", "dropbox_refresh_token": "", "dropbox_sync_enabled": False, "dropbox_last_sync": 0, "device_id": "", "device_name": "", "sync_library": True, "sync_settings": True, "enhance_audio": False, "immersive_audio": False, "music_video": False, "music_video_autoplay": False, "transition_albums": False, "gapless_transition_only": False, "shuffle_transition_only": False, "cover_art_bleed": False, "cover_art_hue_sync": False, "audio_scrub": False, "eq": [], "perf_overlay": False, "win_use_webview": True}
+_DEFS   = {"data_dir": str(_HOME), "gapless": True, "format": "mp3", "quality": "0", "crossfade": 0, "genius_token": "", "auto_genius": True, "volume": 0.8, "volume_norm": False, "target_lufs": -14, "theme_hue": 145, "theme_sat": 50, "theme_bri": 1.0, "ddg_genius": True, "prev_restarts": True, "dl_speed_single": "fast", "dl_speed_batch": "balanced", "spotify_local_dir": "", "auto_align_lyrics": False, "ui_design": "material", "dropbox_refresh_token": "", "dropbox_sync_enabled": False, "dropbox_last_sync": 0, "device_id": "", "device_name": "", "sync_library": True, "sync_settings": True, "enhance_audio": False, "immersive_audio": False, "music_video": False, "music_video_autoplay": False, "transition_albums": False, "gapless_transition_only": False, "shuffle_transition_only": False, "cover_art_bleed": False, "cover_art_hue_sync": False, "audio_scrub": False, "eq": [], "win_use_webview": True}
 
 def load_cfg():
     _HOME.mkdir(parents=True, exist_ok=True)
@@ -4129,6 +4129,7 @@ def _touch_cleanup():
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024 * 1024
 
+
 @app.route('/api/perf-sample')
 def api_perf_sample():
     try:
@@ -4144,7 +4145,7 @@ def api_perf_sample():
                 pass
         return jsonify({'ok': True, 'cpu': round(wv2_cpu, 2), 'mem_mb': round(wv2_mem / 1024 / 1024, 1)})
     except ImportError:
-        return jsonify({'ok': False, 'error': 'psutil not installed — run: pip install psutil'})
+        return jsonify({'ok': False, 'error': 'psutil not installed'})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)})
 
@@ -10879,16 +10880,6 @@ body.design-glassy .list-header.pinned::before{
     </div>
   </div>
 
-  <!-- perf overlay chip + mobile detail drawer -->
-  <div id="perf-overlay" onclick="if(isMobile())_openPerfDrawer()"></div>
-  <div id="perf-drawer-sidebar" class="hidden">
-    <div class="mob-sheet-handle-zone"><div class="mob-sheet-handle"></div></div>
-    <div class="perf-drawer-hdr">
-      <span>performance</span>
-      <button class="cbtn mu-ripple" onclick="_closePerfDrawer()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:block"><line x1="4" y1="4" x2="20" y2="20"/><line x1="20" y1="4" x2="4" y2="20"/></svg></button>
-    </div>
-    <div class="perf-drawer-body" id="perf-drawer-body"></div>
-  </div>
 
   <div id="player" class="ui-topbar" onclick="if(isMobile()&&!event.target.closest('button,.playbtn'))toggleNowPlaying();">
     <div id="mob-seek" role="slider" aria-label="seek position">
@@ -14491,7 +14482,6 @@ function fmt(s) {
 }
 
 function updateProg(t, d) {
-  const _ppT = CFG.perf_overlay ? performance.now() : 0;
   if(_seekDragging) return;
   const pct = d > 0 ? (t/d*100) : 0;
   _wavyProgPct = pct / 100; // single source of truth for wavy position — _wavyAnimTick reads this
@@ -14523,10 +14513,6 @@ function updateProg(t, d) {
   // (_spikyRotTickInner) already redraws the canvas at 30fps while playing,
   // and updatePlayBtn() redraws it on every play/pause/song state change.
   // Calling it again on every progress tick (30fps) was purely redundant.
-  if (CFG.perf_overlay && _ppT) {
-    const _pi = (_perfHead - 1 + _PERF_FRAMES) % _PERF_FRAMES;
-    _perfUpdateProg[_pi] = performance.now() - _ppT;
-  }
 }
 
 // ── mobile now playing wavy seekbar mirror ────────────────────────────────────
@@ -15583,7 +15569,6 @@ function _getColTpl(cols) {
 }
 
 function renderLibrary(){
-  const _rlT = CFG.perf_overlay ? performance.now() : 0;
   _barHeightCache = null; _barHeightCacheDirty = true;
   S.libSearch = S.globalSearch || S.libSearch || '';
   const vc=document.getElementById('vc');
@@ -15732,10 +15717,6 @@ function renderLibrary(){
   _precoverSongs(songs);
   updateHighlights();
   applyDownloadWipes();
-  if (CFG.perf_overlay && _rlT) {
-    const _pi = (_perfHead - 1 + _PERF_FRAMES) % _PERF_FRAMES;
-    _perfRenderLib[_pi] = performance.now() - _rlT;
-  }
 }
 async function renderPlaylist(pid){
   const vc=document.getElementById('vc');
@@ -16280,57 +16261,6 @@ function renderNowPlaying() {
 }
 
 {const _s=document.createElement('style');_s.textContent=`
-/* ── perf overlay ─────────────────────────────────────────────────────────── */
-#perf-overlay{
-  position:fixed;bottom:80px;right:12px;z-index:9000;
-  background:rgba(0,0,0,0.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  color:#fff;font:600 10px/1.4 'Courier New',monospace;
-  padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);
-  pointer-events:auto;cursor:pointer;
-  min-width:110px;display:none;
-  user-select:none;-webkit-user-select:none;
-}
-#perf-overlay.visible{display:block;}
-#perf-overlay .po-fps{font-size:14px;font-weight:700;letter-spacing:-.5px;color:#4fffb0;}
-#perf-overlay .po-warn{color:#ff6b6b;}
-#perf-overlay .po-bar{
-  display:inline-block;height:6px;border-radius:2px;background:#4fffb0;
-  vertical-align:middle;max-width:60px;transition:width .1s;
-}
-#perf-overlay .po-bar.warn{background:#ff6b6b;}
-#perf-overlay .po-bar.med{background:#ffd93d;}
-#perf-drawer-sidebar{
-  position:fixed;bottom:0;left:0;right:0;z-index:9100;
-  background:var(--color-surface-container);
-  border-radius:var(--radius-xl) var(--radius-xl) 0 0;
-  box-shadow:0 -4px 32px rgba(0,0,0,0.28);
-  max-height:75vh;display:flex;flex-direction:column;
-  transition:transform .3s cubic-bezier(.32,0,.67,0);
-}
-#perf-drawer-sidebar.hidden{transform:translateY(110%);}
-.perf-drawer-hdr{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:16px 20px 8px;flex-shrink:0;
-}
-.perf-drawer-hdr span{font:var(--type-title-small);font-variation-settings:var(--fv-label);}
-.perf-drawer-body{overflow-y:auto;padding:0 20px 32px;flex:1;}
-.po-section{margin-bottom:12px;}
-.po-section-title{
-  font:var(--type-label-small);font-variation-settings:var(--fv-label);
-  color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:1px;
-  margin-bottom:4px;
-}
-.po-metric-row{
-  display:flex;align-items:center;gap:8px;
-  padding:3px 0;font:600 11px/1.5 'Courier New',monospace;
-  color:var(--color-on-surface);
-}
-.po-metric-row .po-name{flex:0 0 140px;color:var(--color-on-surface-variant);font-weight:400;}
-.po-metric-row .po-val{flex:0 0 52px;text-align:right;}
-.po-metric-row .po-bar-wrap{flex:1;height:6px;background:var(--color-surface-container-highest);border-radius:3px;overflow:hidden;}
-.po-metric-row .po-bar-fill{height:100%;border-radius:3px;background:var(--color-primary);transition:width .12s;}
-.po-metric-row .po-bar-fill.warn{background:#ff6b6b;}
-.po-metric-row .po-bar-fill.med{background:#ffd93d;}
 /* ── MV cover overlay controls ── */
 #np-mv-overlay-controls{
   position:absolute;inset:0;z-index:6;
@@ -19047,30 +18977,10 @@ function _sharedAnimTick(now) {
   const _skipPaint = _IS_ANDROID_UA && _animFrameSkip;
 
   let barsActive;
-  if (CFG.perf_overlay) {
-    const _pt0 = performance.now();
-    if (!_skipPaint) _spikyRotTickInner(); else _spikyRotAdvanceOnly();
-    const _pt1 = performance.now();
-    if (!_skipPaint) _volRotTickInner(); else _volRotAdvanceOnly();
-    const _pt2 = performance.now();
-    if (!_skipPaint) _wavyAnimTickInner(_animDtMs); else _wavyAdvanceOnly(_animDtMs);
-    const _pt3 = performance.now();
-    barsActive = _tickBarsInner(_skipPaint && S.isPlaying);
-    const _pt4 = performance.now();
-    const _pi = _perfHead % _PERF_FRAMES;
-    _perfSpiky[_pi]      = _pt1 - _pt0;
-    _perfVol[_pi]        = _pt2 - _pt1;
-    _perfWavy[_pi]       = _pt3 - _pt2;
-    _perfBars[_pi]       = _pt4 - _pt3;
-    _perfFrameTimes[_pi] = _pt4 - _pt0;  // real JS cost of this tick, not scaled dt
-    _perfHead++;
-    _perfRealDt[_pi]     = dtMs;          // actual wall-clock frame interval
-  } else {
-    if (!_skipPaint) _spikyRotTickInner(); else _spikyRotAdvanceOnly();
-    if (!_skipPaint) _volRotTickInner(); else _volRotAdvanceOnly();
-    if (!_skipPaint) _wavyAnimTickInner(_animDtMs); else _wavyAdvanceOnly(_animDtMs);
-    barsActive = _tickBarsInner(_skipPaint && S.isPlaying);
-  }
+  if (!_skipPaint) _spikyRotTickInner(); else _spikyRotAdvanceOnly();
+  if (!_skipPaint) _volRotTickInner(); else _volRotAdvanceOnly();
+  if (!_skipPaint) _wavyAnimTickInner(_animDtMs); else _wavyAdvanceOnly(_animDtMs);
+  barsActive = _tickBarsInner(_skipPaint && S.isPlaying);
   _barsActiveLast = barsActive;
 
   // decide whether to keep running
@@ -19097,256 +19007,7 @@ function _sharedAnimTick(now) {
   _sharedAnimRaf = requestAnimationFrame(_sharedAnimTick);
 }
 
-// ── perf overlay ─────────────────────────────────────────────────────────────
-const _PERF_FRAMES = 60;
-const _perfFrameTimes = new Float32Array(_PERF_FRAMES);
-const _perfSpiky      = new Float32Array(_PERF_FRAMES);
-const _perfVol        = new Float32Array(_PERF_FRAMES);
-const _perfWavy       = new Float32Array(_PERF_FRAMES);
-const _perfBars       = new Float32Array(_PERF_FRAMES);
-const _perfUpdateProg = new Float32Array(_PERF_FRAMES);
-const _perfRenderLib  = new Float32Array(_PERF_FRAMES);
-const _perfRealDt     = new Float32Array(_PERF_FRAMES);  // actual rAF interval ms
-let _perfHead = 0;
-let _perfOverlayRaf = null;
-let _perfDrawerOpen = false;
 
-function _perfAvg(buf) {
-  let s = 0; for (let i = 0; i < _PERF_FRAMES; i++) s += buf[i]; return s / _PERF_FRAMES;
-}
-function _perfMax(buf) {
-  let m = 0; for (let i = 0; i < _PERF_FRAMES; i++) if (buf[i] > m) m = buf[i]; return m;
-}
-function _perfBarCls(ms, budget) {
-  return ms >= budget * 0.75 ? 'warn' : ms >= budget * 0.4 ? 'med' : '';
-}
-
-function _setPerfOverlay(on) {
-  CFG.perf_overlay = on;
-  const el = document.getElementById('perf-overlay');
-  if (!el) return;
-  if (on) {
-    el.classList.add('visible');
-    if (!_perfOverlayRaf) {
-      const tick = () => { _perfOverlayRaf = requestAnimationFrame(tick); _perfUpdateOverlay(); };
-      _perfOverlayRaf = requestAnimationFrame(tick);
-    }
-  } else {
-    el.classList.remove('visible');
-    _closePerfDrawer();
-    if (_perfOverlayRaf) { cancelAnimationFrame(_perfOverlayRaf); _perfOverlayRaf = null; }
-  }
-}
-
-// ── built-in perf test ───────────────────────────────────────────────────────
-const _PERF_MODULES = [
-  { id: 'baseline',     label: 'baseline (all enabled)',  disable: null, enable: null },
-  { id: 'sharedAnim',   label: 'shared anim rAF loop',    disable: () => { window._stopSharedAnim?.(); window._mpt_startSharedAnim = window._startSharedAnim; window._startSharedAnim = () => {}; }, enable: () => { if (window._mpt_startSharedAnim) window._startSharedAnim = window._mpt_startSharedAnim; window._startSharedAnim?.(); } },
-  { id: 'spiky',        label: 'spiky rot tick',          disable: () => { window._mpt_sI = window._spikyRotTickInner; window._mpt_sA = window._spikyRotAdvanceOnly; window._spikyRotTickInner = () => {}; window._spikyRotAdvanceOnly = () => {}; }, enable: () => { if (window._mpt_sI) window._spikyRotTickInner = window._mpt_sI; if (window._mpt_sA) window._spikyRotAdvanceOnly = window._mpt_sA; } },
-  { id: 'vol',          label: 'vol rot tick',            disable: () => { window._mpt_vI = window._volRotTickInner; window._mpt_vA = window._volRotAdvanceOnly; window._volRotTickInner = () => {}; window._volRotAdvanceOnly = () => {}; }, enable: () => { if (window._mpt_vI) window._volRotTickInner = window._mpt_vI; if (window._mpt_vA) window._volRotAdvanceOnly = window._mpt_vA; } },
-  { id: 'wavy',         label: 'wavy seekbar tick',       disable: () => { window._mpt_wI = window._wavyAnimTickInner; window._mpt_wA = window._wavyAdvanceOnly; window._wavyAnimTickInner = () => {}; window._wavyAdvanceOnly = () => {}; }, enable: () => { if (window._mpt_wI) window._wavyAnimTickInner = window._mpt_wI; if (window._mpt_wA) window._wavyAdvanceOnly = window._mpt_wA; } },
-  { id: 'bars',         label: 'bar tick + energy poll',  disable: () => { window._mpt_b = window._tickBarsInner; window._tickBarsInner = () => false; window.stopBarTick?.(); }, enable: () => { if (window._mpt_b) window._tickBarsInner = window._mpt_b; window.startBarTick?.(); } },
-  { id: 'progress',     label: 'progress ticker',         disable: () => { const e = window.engine; if (!e) return; e._stopProgress?.(); window._mpt_sp = e._startProgress?.bind(e); e._startProgress = () => {}; }, enable: () => { const e = window.engine; if (!e) return; if (window._mpt_sp) e._startProgress = window._mpt_sp; e._startProgress?.(); } },
-  { id: 'updateProg',   label: 'updateProg DOM writes',   disable: () => { window._mpt_up = window.updateProg; window.updateProg = () => {}; }, enable: () => { if (window._mpt_up) window.updateProg = window._mpt_up; } },
-  { id: 'highlights',   label: 'updateHighlights',        disable: () => { window._mpt_uh = window.updateHighlights; window.updateHighlights = () => {}; }, enable: () => { if (window._mpt_uh) window.updateHighlights = window._mpt_uh; } },
-  { id: 'mediaSession', label: 'mediaSession',            disable: () => { if (!('mediaSession' in navigator)) return; window._mpt_ms = navigator.mediaSession.setPositionState.bind(navigator.mediaSession); navigator.mediaSession.setPositionState = () => {}; }, enable: () => { if (window._mpt_ms) navigator.mediaSession.setPositionState = window._mpt_ms; } },
-  { id: 'audioCtx',     label: 'AudioContext (suspend)',  disable: () => { window.engine?.ctx?.suspend(); }, enable: () => { window.engine?.ctx?.resume(); } },
-];
-
-let _perfTestRunning = false;
-
-async function _runPerfTest() {
-  if (_perfTestRunning) return;
-  _perfTestRunning = true;
-
-  const out = document.getElementById('_mpt-out');
-  if (!out) { _perfTestRunning = false; return; }
-
-  const SETTLE_MS = 5000;
-  const SAMPLE_MS = 2000;
-  const SAMPLES = 3;
-
-  async function sample() {
-    await fetch('/api/perf-sample'); // prime — first call always returns 0
-    await new Promise(r => setTimeout(r, SAMPLE_MS));
-    let cpu = 0, mem = 0, ok = false;
-    for (let i = 0; i < SAMPLES; i++) {
-      const r = await fetch('/api/perf-sample').then(r => r.json()).catch(() => null);
-      if (r?.ok) { cpu += r.cpu; mem = r.mem_mb; ok = true; }
-      if (i < SAMPLES - 1) await new Promise(r => setTimeout(r, 500));
-    }
-    return ok ? { cpu: +(cpu / SAMPLES).toFixed(2), mem } : null;
-  }
-
-  function enableAll() { _PERF_MODULES.forEach(m => { try { m.enable?.(); } catch(e) {} }); }
-
-  out.innerHTML = '<div style="color:var(--color-on-surface-variant);font-size:12px;margin-bottom:8px">checking playback state…</div>';
-
-  if (!S.isPlaying) {
-    out.innerHTML = '<div style="color:var(--color-error);font-size:12px">start playing a song first, let it run for ~10s to stabilise, then hit run test</div>';
-    _perfTestRunning = false;
-    return;
-  }
-
-  // short settle to make sure we're past any song-start spike
-  await new Promise(r => setTimeout(r, 2000));
-
-  enableAll();
-  const results = [];
-
-  out.innerHTML = '<div style="color:var(--color-on-surface-variant);font-size:12px;margin-bottom:8px">test running (song playing) — do not interact during this test</div>';
-
-  for (let i = 0; i < _PERF_MODULES.length; i++) {
-    const m = _PERF_MODULES[i];
-    out.innerHTML += `<div id="_mpt-row-${m.id}" style="font-size:12px;color:var(--color-on-surface-variant);padding:2px 0">⏳ ${m.label}…</div>`;
-
-    // each module tested in isolation: re-enable all, then disable just this one
-    enableAll();
-    if (m.disable) { try { m.disable(); } catch(e) {} }
-    await new Promise(r => setTimeout(r, SETTLE_MS));
-    const s = await sample();
-    // re-enable immediately after sampling so audio/ui stays functional
-    if (m.disable) { try { m.enable?.(); } catch(e) {} }
-
-    const rowEl = document.getElementById('_mpt-row-' + m.id);
-    if (s) {
-      const cpuColor = s.cpu < 2 ? 'var(--color-primary)' : s.cpu < 6 ? '#ffd93d' : '#ff6b6b';
-      if (rowEl) rowEl.outerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid var(--color-outline-variant)">
-        <span style="color:var(--color-on-surface)">${m.label}</span>
-        <span style="color:${cpuColor};font-variant-numeric:tabular-nums;font-size:13px;font-weight:600">${s.cpu}% CPU</span>
-        <span style="color:var(--color-on-surface-variant);font-size:11px">${s.mem}MB</span>
-      </div>`;
-      results.push({ label: m.label, cpu: s.cpu, mem: s.mem });
-    } else {
-      if (rowEl) rowEl.outerHTML = `<div style="font-size:12px;color:var(--color-error);padding:2px 0">${m.label} — sample failed (psutil missing?)</div>`;
-    }
-  }
-
-  enableAll();
-
-  // summary: compare each disabled reading vs baseline (index 0)
-  if (results.length > 1) {
-    const base = results[0]?.cpu || 0;
-    const sorted = [...results.slice(1)].sort((a, b) => a.cpu - b.cpu);
-    const best = sorted[0];
-    const impactLines = sorted
-      .filter(r => base - r.cpu > 0.3)
-      .map(r => `<div style="font-size:11px;color:var(--color-on-surface-variant);padding:1px 0">
-        disable <b style="color:var(--color-on-surface)">${r.label}</b>: ${r.cpu}% (−${(base - r.cpu).toFixed(2)}%)
-      </div>`)
-      .join('');
-    out.innerHTML += `<div style="margin-top:10px;padding:8px;background:var(--color-surface-container);border-radius:var(--radius-sm)">
-      <div style="font-size:12px;color:var(--color-on-surface-variant);margin-bottom:4px">baseline (all on): <b style="color:var(--color-on-surface)">${base}% CPU</b></div>
-      ${impactLines || '<div style="font-size:11px;color:var(--color-on-surface-variant)">no module caused >0.3% drop individually</div>'}
-    </div>`;
-  }
-
-  out.innerHTML += `<div style="margin-top:8px"><button class="btn btn-out mu-ripple" style="font:var(--type-label-small);padding:4px 12px" onclick="_runPerfTest()">run again</button></div>`;
-  _perfTestRunning = false;
-}
-
-function _openPerfDrawer() {
-  const el = document.getElementById('perf-drawer-sidebar');
-  if (!el) return;
-  _perfDrawerOpen = true;
-  el.classList.remove('hidden');
-  _registerDrawer(el, _closePerfDrawer);
-  // init drag once; use _initSheetDrag directly so the dismiss callback is
-  // _closePerfDrawer, not _sheetDismiss which doesn't know about this element
-  if (!el._perfDragInit) {
-    el._perfDragInit = true;
-    const ac = new AbortController();
-    el._perfDragAC = ac;
-    _initSheetDrag(el, _closePerfDrawer, () => el.querySelector('.perf-drawer-body'), ac.signal);
-  }
-}
-
-function _closePerfDrawer() {
-  const el = document.getElementById('perf-drawer-sidebar');
-  if (!el) return;
-  _perfDrawerOpen = false;
-  el.classList.add('hidden');
-  _unregisterDrawer(el);
-}
-
-function _perfMetricRow(name, ms, budget) {
-  const pct = Math.min(100, (ms / budget) * 100);
-  const cls = _perfBarCls(ms, budget);
-  return `<div class="po-metric-row">
-    <span class="po-name">${name}</span>
-    <span class="po-val${cls === 'warn' ? ' po-warn' : ''}">${ms.toFixed(2)}ms</span>
-    <div class="po-bar-wrap"><div class="po-bar-fill ${cls}" style="width:${pct}%"></div></div>
-  </div>`;
-}
-
-function _perfUpdateOverlay() {
-  const avgDt    = _perfAvg(_perfRealDt);   // actual rAF interval = true frame time
-  const maxDt    = _perfMax(_perfRealDt);
-  const avgTick  = _perfAvg(_perfFrameTimes); // JS cost of _sharedAnimTick only
-  const maxTick  = _perfMax(_perfFrameTimes);
-  const fps      = avgDt > 0 ? Math.min(999, Math.round(1000 / avgDt)) : 0;
-  const avgSpiky = _perfAvg(_perfSpiky);
-  const avgVol   = _perfAvg(_perfVol);
-  const avgWavy  = _perfAvg(_perfWavy);
-  const avgBars  = _perfAvg(_perfBars);
-  const avgProg  = _perfAvg(_perfUpdateProg);
-  const avgLib   = _perfAvg(_perfRenderLib);
-  const animTotal = avgSpiky + avgVol + avgWavy + avgBars;
-  const budget   = 16.667;
-  const fpsWarn  = fps < 50 ? ' po-warn' : '';
-  const dtBarCls = _perfBarCls(maxDt, budget);
-
-  const overlay = document.getElementById('perf-overlay');
-  if (overlay) {
-    if (isMobile()) {
-      overlay.innerHTML =
-        `<div class="po-fps${fpsWarn}">${fps} fps</div>` +
-        `<div style="font-size:9px;opacity:.8;margin-top:1px">${avgDt.toFixed(1)}ms · tick ${avgTick.toFixed(1)}ms</div>` +
-        `<div style="margin-top:3px"><span class="po-bar ${dtBarCls}" style="width:${Math.min(60,maxDt/budget*36)}px"></span></div>` +
-        `<div style="font-size:9px;opacity:.55;margin-top:2px">tap for details</div>`;
-    } else {
-      overlay.innerHTML =
-        `<div class="po-fps${fpsWarn}">${fps} fps</div>` +
-        `<div style="font-size:9px;opacity:.8">frame ${avgDt.toFixed(1)}ms / peak ${maxDt.toFixed(1)}ms</div>` +
-        `<div style="font-size:9px;opacity:.65">tick JS ${avgTick.toFixed(1)}ms / peak ${maxTick.toFixed(1)}ms</div>` +
-        `<div style="margin:3px 0"><span class="po-bar ${dtBarCls}" style="width:${Math.min(60,maxDt/budget*36)}px"></span></div>` +
-        `<div style="font-size:9px;opacity:.75">spiky ${avgSpiky.toFixed(1)} vol ${avgVol.toFixed(1)} wavy ${avgWavy.toFixed(1)} bars ${avgBars.toFixed(1)}</div>` +
-        `<div style="font-size:9px;opacity:.55">prog ${avgProg.toFixed(1)} lib ${avgLib.toFixed(1)}</div>`;
-    }
-  }
-
-  if (_perfDrawerOpen) {
-    const body = document.getElementById('perf-drawer-body');
-    if (body) body.innerHTML =
-      `<div class="po-section">` +
-        `<div class="po-section-title">frame interval (real)</div>` +
-        _perfMetricRow('frame avg (60f)', avgDt, budget) +
-        _perfMetricRow('frame peak (60f)', maxDt, budget) +
-        `<div class="po-metric-row" style="font-size:9px;color:var(--color-on-surface-variant);gap:0">budget: 16.67ms = 60fps · 33.33ms = 30fps</div>` +
-      `</div>` +
-      `<div class="po-section">` +
-        `<div class="po-section-title">anim tick JS cost</div>` +
-        _perfMetricRow('tick avg (60f)', avgTick, budget) +
-        _perfMetricRow('tick peak (60f)', maxTick, budget) +
-        _perfMetricRow('spiky FFT + lerps', avgSpiky, 4) +
-        _perfMetricRow('vol icon', avgVol, 2) +
-        _perfMetricRow('wavy seekbar', avgWavy, 2) +
-        _perfMetricRow('bars', avgBars, 2) +
-        _perfMetricRow('anim subtotal', animTotal, budget) +
-      `</div>` +
-      `<div class="po-section">` +
-        `<div class="po-section-title">other</div>` +
-        _perfMetricRow('updateProg (30fps tick)', avgProg, 5) +
-        _perfMetricRow('renderLibrary (one-off)', avgLib, 50) +
-      `</div>` +
-      `<div class="po-section">` +
-        `<div class="po-section-title">summary</div>` +
-        `<div class="po-metric-row"><span class="po-name">fps</span><span class="po-val${fpsWarn}">${fps}</span><div class="po-bar-wrap"><div class="po-bar-fill${fps<50?' warn':fps<55?' med':''}" style="width:${Math.min(100,fps/60*100)}%"></div></div></div>` +
-        `<div class="po-metric-row" style="font-size:9px;color:var(--color-on-surface-variant);gap:0">frame = rAF interval (GPU+paint) · tick = JS work only</div>` +
-        `<div class="po-metric-row" style="font-size:9px;color:var(--color-on-surface-variant);gap:0">red = over budget · yellow = 40–75% of budget</div>` +
-      `</div>`;
-  }
-}
 
 // converts a "per-frame" convergence rate (tuned assuming 60fps) into the
 // correct fraction to apply for however much real time actually elapsed,
@@ -24902,11 +24563,10 @@ function renderSettings() {
       { id: 'dropbox sync', label: 'dropbox sync',  icon: '<path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5z"/><path stroke="currentColor" stroke-width="2.5" fill="none" d="M2 17l10 5 10-5"/><path stroke="currentColor" stroke-width="2.5" fill="none" d="M2 12l10 5 10-5"/>' },
       { id: 'library',      label: 'library',       icon: '<path fill="currentColor" d="M18 2H8a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm0 18H8a1 1 0 0 1 0-2h10v2z"/>' },
       { id: '_stats',       label: 'stats',         icon: '<rect fill="currentColor" x="2" y="9" width="6" height="12" rx="1"/><rect fill="currentColor" x="10" y="13" width="5" height="8" rx="1"/><rect fill="currentColor" x="17" y="5" width="5" height="16" rx="1"/>' },
-      { id: '_perf',        label: 'perf overlay',  icon: '<polyline stroke="currentColor" stroke-width="2.5" fill="none" points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
     ];
     const chevron = `<svg class="set-list-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`;
     const listItems = _SET_SECTIONS.map(s => `
-      <div class="set-list-item mu-ripple" onclick="${s.id === '_stats' ? "setView('stats')" : s.id === '_perf' ? `_setPerfOverlay(!CFG.perf_overlay);saveSetting('perf_overlay',CFG.perf_overlay)` : `setSettingsSection('${s.id}')`}">
+      <div class="set-list-item mu-ripple" onclick="${s.id === '_stats' ? "setView('stats')" : `setSettingsSection('${s.id}')`}">
         <div style="display:flex;align-items:center;gap:14px">
           <svg class="set-list-icon" viewBox="0 0 24 24" width="22" height="22"">${s.icon}</svg>
           <span class="set-list-label">${s.label}</span>
@@ -25186,16 +24846,6 @@ function renderSettings() {
             <div class="switch-track"><div class="switch-thumb"></div></div>
           </label>
         `)}
-        ${row('perf overlay', 'show real-time frame budget and render timings', `
-          <label class="switch" style="flex-shrink:0">
-            <input type="checkbox" ${CFG.perf_overlay?'checked':''} onchange="saveSetting('perf_overlay',this.checked).then(()=>{CFG.perf_overlay=this.checked;_setPerfOverlay(this.checked)})" onclick="event.stopPropagation()">
-            <div class="switch-track"><div class="switch-thumb"></div></div>
-          </label>
-        `)}
-        ${row('cpu impact test', 'disables modules one by one and samples webview2 cpu — play a song first, takes ~1 min', `
-          <button class="btn btn-out mu-ripple" style="font:var(--type-label-small);padding:4px 12px" onclick="_runPerfTest()">run test</button>
-        `)}
-        <div id="_mpt-out" style="padding:4px 0 8px"></div>
         ${CFG._platform === 'win32' ? row('window mode', 'webview = built-in chromium window; system browser = uses your existing brave/chrome as a lightweight app window (lower cpu)', `
           <div style="display:flex;gap:6px">
             ${[['webview','webview'],['system browser','system browser']].map(([v,label])=>`<button class="btn ${(CFG.win_use_webview!==false?'webview':'system browser')===v?'btn-filled':'btn-out'} mu-ripple" style="padding:4px 10px;font:var(--type-label-small)" onclick="_setWinMode('${v}')">${label}</button>`).join('')}
@@ -25649,7 +25299,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       _updateMobNpSpiky();
     }
     if (cfg.ui_design !== undefined) applyDesign(cfg.ui_design);
-    if (cfg.perf_overlay) _setPerfOverlay(true);
   }
   renderPlNav();
   if (CFG.volume_norm && S.cur && engine.cur && engine.cur.normGain) {
