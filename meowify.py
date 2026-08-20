@@ -18912,7 +18912,7 @@ function _volRotTickInner(_skipDom) {
 // per-second DOM/canvas write volume. Detected once, not configurable, so
 // desktop behavior is completely unaffected.
 const _IS_ANDROID_UA = /Android/i.test(navigator.userAgent);
-let _animFrameSkip = false;
+let _animFrameSkip = 0;
 let _barsActiveLast = false;
 let _sharedAnimRaf = null;
 let _sharedAnimRunning = false;
