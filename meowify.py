@@ -25619,7 +25619,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let _lastMobile=isMobile();
   let _resizeTimer=null;
   window.addEventListener('resize',()=>{
-    _wavyW = 0;
+    _wavyW = 0; _wavyLastW = -1;
     _mobNpWavyW = 0; // force re-measure on next wavy tick after resize
     updateMobileClass();
     const _mNow=isMobile();
