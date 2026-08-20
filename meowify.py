@@ -9525,7 +9525,7 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
 }
 .snum-bars{
   position:absolute;display:flex;align-items:flex-end;gap:2px;
-  width:22px;height:32px;justify-content:center;padding-bottom:2px;
+  width:22px;height:22px;justify-content:center;padding-bottom:2px;
   overflow:visible;opacity:0;transition:opacity var(--dur-2);
 }
   .snum-bar{
