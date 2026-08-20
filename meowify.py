@@ -14714,6 +14714,10 @@ function updateWavySeek(prog) {
   const amp = _wavyAmpCur;
 
   const { primary, track } = _getWavyColors();
+  const primaryChanged = primary !== _wavyLastPrimary;
+  const trackChanged   = track   !== _wavyLastTrack;
+  if (primaryChanged) _wavyLastPrimary = primary;
+  if (trackChanged)   _wavyLastTrack   = track;
   const HANDLE_W = 3;   // pill width px
   const HANDLE_H = 14;  // pill height px
   const HANDLE_PAD = 5; // gap between wave end and pill
@@ -14735,9 +14739,7 @@ function updateWavySeek(prog) {
       progress: 1,
     });
     fillPath.setAttribute('d', fillD);
-    fillPath.setAttribute('stroke', primary);
-    fillPath.setAttribute('stroke-width', WAVY_SW);
-    fillPath.setAttribute('stroke-linecap', 'round');
+    if (primaryChanged) fillPath.setAttribute('stroke', primary);
     fillPath.style.display = '';
   } else {
     fillPath.style.display = 'none';
@@ -14747,10 +14749,7 @@ function updateWavySeek(prog) {
   const flatStartX = svgEndX + HANDLE_PAD;
   if (prog < 0.995 && flatStartX < _wavyW) {
     trackPath.setAttribute('d', `M${flatStartX.toFixed(2)},${mid.toFixed(2)} L${_wavyW.toFixed(2)},${mid.toFixed(2)}`);
-    trackPath.setAttribute('stroke', track);
-    trackPath.setAttribute('stroke-width', WAVY_SW);
-    trackPath.setAttribute('stroke-linecap', 'round');
-    trackPath.setAttribute('opacity', '1');
+    if (trackChanged) trackPath.setAttribute('stroke', track);
     trackPath.style.display = '';
   } else {
     trackPath.style.display = 'none';
