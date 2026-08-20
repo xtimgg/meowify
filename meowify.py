@@ -19161,7 +19161,7 @@ async function _runPerfTest() {
   const out = document.getElementById('_mpt-out');
   if (!out) { _perfTestRunning = false; return; }
 
-  const SETTLE_MS = 3000;
+  const SETTLE_MS = 5000;
   const SAMPLE_MS = 2000;
   const SAMPLES = 3;
 
