@@ -14653,6 +14653,8 @@ function mobNpSeekClick(e) {
 let _wavyPhase = 0;
 let _wavyW = 400;
 let _wavyH = 28;
+let _wavyLastPrimary = '';
+let _wavyLastTrack = '';
 let _wavyProgPct = 0; // authoritative position 0..1 — written by updateProg/_commitSeekFrac, read by _wavyAnimTick
   const WAVY_AMP_IDLE   = 0.0;
   const WAVY_AMP_PLAY   = 1.8;
@@ -15242,7 +15244,7 @@ function startBarTick() {
   _startSharedAnim();
   if (_barSpeedUnsub) return;
   _barSpeedUnsub = subscribeEnergy(energy => {
-    const rate = 0.25 + energy * 1;
+    const rate = 0.25 + energy * 1.15;
     const scale = energy >= 0.5 ? 1 : 0.25 + (energy / 0.5) * 0.75;
     document.querySelectorAll('.snum-bar').forEach(el =>
       el.getAnimations().forEach(a => a.playbackRate = rate)
