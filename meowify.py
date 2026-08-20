@@ -14706,7 +14706,7 @@ function updateWavySeek(prog) {
   const svg = document.getElementById('wavy-seek-svg');
   if (!wrap || !trackPath) return;
 
-  { const rect = wrap.getBoundingClientRect(); if (rect.width > 0) _wavyW = rect.width; }
+  if (_wavyW <= 0) { const rect = wrap.getBoundingClientRect(); if (rect.width > 0) _wavyW = rect.width; }
   _wavyH = 28;
   svg.setAttribute('viewBox', `0 0 ${_wavyW} ${_wavyH}`);
 
