@@ -19166,8 +19166,7 @@ async function _runPerfTest() {
   const SAMPLES = 3;
 
   async function sample() {
-    // prime psutil cpu_percent (first call always returns 0)
-    await fetch('/api/perf-sample');
+    await fetch('/api/perf-sample'); // prime — first call always returns 0
     await new Promise(r => setTimeout(r, SAMPLE_MS));
     let cpu = 0, mem = 0, ok = false;
     for (let i = 0; i < SAMPLES; i++) {
@@ -19178,20 +19177,41 @@ async function _runPerfTest() {
     return ok ? { cpu: +(cpu / SAMPLES).toFixed(2), mem } : null;
   }
 
-  // re-enable all first (clean state)
-  _PERF_MODULES.forEach(m => { try { m.enable?.(); } catch(e) {} });
-  const disabled = [];
+  function enableAll() { _PERF_MODULES.forEach(m => { try { m.enable?.(); } catch(e) {} }); }
+
+  out.innerHTML = '<div style="color:var(--color-on-surface-variant);font-size:12px;margin-bottom:8px">preparing — ensuring song is playing…</div>';
+
+  // ensure song is playing before starting
+  if (!S.isPlaying) {
+    const song = S.viewSongs?.[0] || S.queue?.[0];
+    if (song) {
+      playFromList(S.viewSongs?.length ? S.viewSongs : S.queue, 0);
+      await new Promise(r => setTimeout(r, 4000)); // wait for audio to start + stabilise
+    } else {
+      out.innerHTML = '<div style="color:var(--color-error);font-size:12px">no songs loaded — open your library first, then run the test</div>';
+      _perfTestRunning = false;
+      return;
+    }
+  } else {
+    await new Promise(r => setTimeout(r, 1500)); // already playing, short settle
+  }
+
+  enableAll();
   const results = [];
 
-  out.innerHTML = '<div style="color:var(--color-on-surface-variant);font-size:12px;margin-bottom:8px">test running — do not interact with meowify during this test</div>';
+  out.innerHTML = '<div style="color:var(--color-on-surface-variant);font-size:12px;margin-bottom:8px">test running (song playing) — do not interact during this test</div>';
 
   for (let i = 0; i < _PERF_MODULES.length; i++) {
     const m = _PERF_MODULES[i];
     out.innerHTML += `<div id="_mpt-row-${m.id}" style="font-size:12px;color:var(--color-on-surface-variant);padding:2px 0">⏳ ${m.label}…</div>`;
 
-    if (m.disable) { try { m.disable(); disabled.push(m); } catch(e) {} }
+    // each module tested in isolation: re-enable all, then disable just this one
+    enableAll();
+    if (m.disable) { try { m.disable(); } catch(e) {} }
     await new Promise(r => setTimeout(r, SETTLE_MS));
     const s = await sample();
+    // re-enable immediately after sampling so audio/ui stays functional
+    if (m.disable) { try { m.enable?.(); } catch(e) {} }
 
     const rowEl = document.getElementById('_mpt-row-' + m.id);
     if (s) {
@@ -19207,17 +19227,22 @@ async function _runPerfTest() {
     }
   }
 
-  // re-enable all
-  disabled.reverse().forEach(m => { try { m.enable?.(); } catch(e) {} });
+  enableAll();
 
-  // summary: biggest drops
+  // summary: compare each disabled reading vs baseline (index 0)
   if (results.length > 1) {
     const base = results[0]?.cpu || 0;
-    const best = [...results].sort((a, b) => a.cpu - b.cpu)[0];
-    out.innerHTML += `<div style="margin-top:10px;font-size:12px;color:var(--color-on-surface-variant)">
-      baseline: <b style="color:var(--color-on-surface)">${base}% CPU</b> →
-      lowest with <b style="color:var(--color-primary)">${best.label}</b> disabled: <b style="color:var(--color-primary)">${best.cpu}% CPU</b>
-      (−${(base - best.cpu).toFixed(2)}%)
+    const sorted = [...results.slice(1)].sort((a, b) => a.cpu - b.cpu);
+    const best = sorted[0];
+    const impactLines = sorted
+      .filter(r => base - r.cpu > 0.3)
+      .map(r => `<div style="font-size:11px;color:var(--color-on-surface-variant);padding:1px 0">
+        disable <b style="color:var(--color-on-surface)">${r.label}</b>: ${r.cpu}% (−${(base - r.cpu).toFixed(2)}%)
+      </div>`)
+      .join('');
+    out.innerHTML += `<div style="margin-top:10px;padding:8px;background:var(--color-surface-container);border-radius:var(--radius-sm)">
+      <div style="font-size:12px;color:var(--color-on-surface-variant);margin-bottom:4px">baseline (all on): <b style="color:var(--color-on-surface)">${base}% CPU</b></div>
+      ${impactLines || '<div style="font-size:11px;color:var(--color-on-surface-variant)">no module caused >0.3% drop individually</div>'}
     </div>`;
   }
 
