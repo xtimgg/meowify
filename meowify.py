@@ -15224,8 +15224,12 @@ function startBarTick() {
   if (_barSpeedUnsub) return;
   _barSpeedUnsub = subscribeEnergy(energy => {
     const rate = 0.25 + energy * 1;
+    const scale = energy >= 0.5 ? 1 : 0.25 + (energy / 0.5) * 0.75;
     document.querySelectorAll('.snum-bar').forEach(el =>
       el.getAnimations().forEach(a => a.playbackRate = rate)
+    );
+    document.querySelectorAll('.snum-bars').forEach(el =>
+      el.style.transform = `scaleY(${scale})`
     );
   });
 }
