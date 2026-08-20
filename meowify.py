@@ -15184,13 +15184,53 @@ function _applyBarHeights_unused() {
   }
 }
 
+// ── shared energy poller ─────────────────────────────────────────────────────
+// single 10fps interval; multiple features subscribe via subscribeEnergy()
+// returns an unsubscribe function. poller starts on first subscriber,
+// stops automatically when the last subscriber unsubscribes.
+const _energyListeners = new Set();
+let _energyInterval = null;
+let _energySmooth = 0;
+
+function subscribeEnergy(fn) {
+  _energyListeners.add(fn);
+  if (!_energyInterval) {
+    _energyInterval = setInterval(() => {
+      if (!_barAnalyser || !_barFreqBuf) return;
+      _barAnalyser.getByteFrequencyData(_barFreqBuf);
+      let e = 0;
+      for (let i = 0; i < 60; i++) e += _barFreqBuf[i];
+      const target = e / (60 * 255);
+      _energySmooth += (target - _energySmooth) * 0.25;
+      _energyListeners.forEach(fn => fn(_energySmooth));
+    }, 100);
+  }
+  return () => {
+    _energyListeners.delete(fn);
+    if (_energyListeners.size === 0 && _energyInterval) {
+      clearInterval(_energyInterval);
+      _energyInterval = null;
+    }
+  };
+}
+
+// ── bar animation speed reactivity ───────────────────────────────────────────
+let _barSpeedUnsub = null;
+
 function startBarTick() {
   _ensureAnalyser();
   _startSharedAnim();
+  if (_barSpeedUnsub) return;
+  _barSpeedUnsub = subscribeEnergy(energy => {
+    const rate = 0.5 + energy * 2.5; // 0.5 quiet → 3.0 loud
+    document.querySelectorAll('.snum-bar').forEach(el =>
+      el.getAnimations().forEach(a => a.playbackRate = rate)
+    );
+  });
 }
 
 function stopBarTick() {
-  // no-op: shared loop handles deceleration and self-cancels
+  if (_barSpeedUnsub) { _barSpeedUnsub(); _barSpeedUnsub = null; }
 }
 
 let _lastHighlightId = null;
