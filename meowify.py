@@ -18973,8 +18973,8 @@ function _sharedAnimTick(now) {
   // still advances every tick via _animFramesRaw/_animFrames math inside each
   // function, so motion stays smooth - only the actual paint cadence drops
   // to ~30fps for these effects specifically, not the audio/UI thread overall.
-  _animFrameSkip = _IS_ANDROID_UA && !_animFrameSkip;
-  const _skipPaint = _IS_ANDROID_UA && _animFrameSkip;
+  _animFrameSkip = !_animFrameSkip;
+  const _skipPaint = _animFrameSkip;
 
   let barsActive;
   if (!_skipPaint) _spikyRotTickInner(); else _spikyRotAdvanceOnly();
