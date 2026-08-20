@@ -9527,6 +9527,7 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
   position:absolute;display:flex;align-items:flex-end;gap:2px;
   width:22px;height:22px;justify-content:center;padding-bottom:2px;
   overflow:visible;opacity:0;transition:opacity var(--dur-2);
+  transform-origin:bottom;
 }
   .snum-bar{
     width:4px;border-radius:2px;
@@ -15222,7 +15223,7 @@ function startBarTick() {
   _startSharedAnim();
   if (_barSpeedUnsub) return;
   _barSpeedUnsub = subscribeEnergy(energy => {
-    const rate = 0.5 + energy * 2.5; // 0.5 quiet → 3.0 loud
+    const rate = 0.25 + energy * 1;
     document.querySelectorAll('.snum-bar').forEach(el =>
       el.getAnimations().forEach(a => a.playbackRate = rate)
     );
