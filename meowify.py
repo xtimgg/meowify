@@ -4129,6 +4129,25 @@ def _touch_cleanup():
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024 * 1024
 
+@app.route('/api/perf-sample')
+def api_perf_sample():
+    try:
+        import psutil
+        wv2_cpu = 0.0
+        wv2_mem = 0
+        for p in psutil.process_iter(['name', 'cpu_percent', 'memory_info']):
+            try:
+                if 'msedgewebview2' in p.info['name'].lower() or 'webview2' in p.info['name'].lower():
+                    wv2_cpu += p.info['cpu_percent'] or 0
+                    wv2_mem += p.info['memory_info'].rss if p.info['memory_info'] else 0
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        return jsonify({'ok': True, 'cpu': round(wv2_cpu, 2), 'mem_mb': round(wv2_mem / 1024 / 1024, 1)})
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'psutil not installed — run: pip install psutil'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
+
 @app.route('/api/batch-speed-override', methods=['POST'])
 def api_batch_speed_override():
     action = (request.json or {}).get('action')  # 'acquire' or 'release'
