@@ -9533,9 +9533,9 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
     background:var(--color-primary);
     height:3px;
   }
-@keyframes _bar0{0%{height:5.5px}6%{height:7.3px}13%{height:8.8px}19%{height:9.8px}25%{height:10.2px}31%{height:9.8px}38%{height:8.8px}44%{height:7.3px}50%{height:5.5px}56%{height:3.7px}63%{height:2.2px}69%{height:1.2px}75%{height:0.9px}81%{height:1.2px}88%{height:2.2px}94%{height:3.7px}100%{height:5.5px}}
-@keyframes _bar1{0%{height:12.0px}6%{height:10.2px}13%{height:7.9px}19%{height:5.5px}25%{height:3.4px}31%{height:1.9px}38%{height:1.2px}44%{height:1.4px}50%{height:2.5px}56%{height:4.4px}63%{height:6.7px}69%{height:9.1px}75%{height:11.2px}81%{height:12.7px}88%{height:13.4px}94%{height:13.1px}100%{height:12.0px}}
-@keyframes _bar2{0%{height:0.9px}6%{height:1.0px}13%{height:1.7px}19%{height:3.0px}25%{height:4.7px}31%{height:6.5px}38%{height:8.2px}44%{height:9.5px}50%{height:10.2px}56%{height:10.2px}63%{height:9.4px}69%{height:8.1px}75%{height:6.4px}81%{height:4.6px}88%{height:2.9px}94%{height:1.6px}100%{height:0.9px}}
+@keyframes _bar0{0%{height:8.3px}6%{height:11.0px}13%{height:13.2px}19%{height:14.7px}25%{height:15.3px}31%{height:14.7px}38%{height:13.2px}44%{height:11.0px}50%{height:8.3px}56%{height:5.6px}63%{height:3.3px}69%{height:1.8px}75%{height:1.4px}81%{height:1.8px}88%{height:3.3px}94%{height:5.6px}100%{height:8.3px}}
+@keyframes _bar1{0%{height:18.0px}6%{height:15.3px}13%{height:11.9px}19%{height:8.3px}25%{height:5.1px}31%{height:2.9px}38%{height:1.8px}44%{height:2.1px}50%{height:3.8px}56%{height:6.6px}63%{height:10.1px}69%{height:13.7px}75%{height:16.8px}81%{height:19.1px}88%{height:20.1px}94%{height:19.7px}100%{height:18.0px}}
+@keyframes _bar2{0%{height:1.4px}6%{height:1.5px}13%{height:2.6px}19%{height:4.5px}25%{height:7.1px}31%{height:9.8px}38%{height:12.3px}44%{height:14.3px}50%{height:15.3px}56%{height:15.3px}63%{height:14.1px}69%{height:12.2px}75%{height:9.6px}81%{height:6.9px}88%{height:4.4px}94%{height:2.4px}100%{height:1.4px}}
 .song-row.playing:not(.paused) .snum-bar:nth-child(1){animation:_bar0 0.55s linear infinite}
 .song-row.playing:not(.paused) .snum-bar:nth-child(2){animation:_bar1 0.55s linear infinite}
 .song-row.playing:not(.paused) .snum-bar:nth-child(3){animation:_bar2 0.55s linear infinite}
