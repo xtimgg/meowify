@@ -14725,6 +14725,8 @@ function updateWavySeek(prog) {
   const endX = svgEndX; // kept for compat, unused for thumb now
   const mid = _wavyH / 2;
 
+  if (primaryChanged) fillPath.setAttribute('stroke', primary);
+
   // --- played (wavy) portion ---
   if (prog > 0.005) {
     // build wavy path only up to endX - HANDLE_PAD
@@ -14738,7 +14740,6 @@ function updateWavySeek(prog) {
       progress: 1,
     });
     fillPath.setAttribute('d', fillD);
-    if (primaryChanged) fillPath.setAttribute('stroke', primary);
     fillPath.style.display = '';
   } else {
     fillPath.style.display = 'none';
