@@ -14698,6 +14698,8 @@ function updateWavySeek(prog) {
       thumb:    document.getElementById('wavy-seek-thumb'),
       svg:      document.getElementById('wavy-seek-svg'),
     };
+    _wavyLastPrimary = null; // force stroke write on next frame now that cache exists
+    _wavyLastTrack = null;
   }
   const { wrap, trackPath, fillPath, thumb, svg } = _wavyElCache;
 
