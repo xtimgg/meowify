@@ -9212,7 +9212,8 @@ svg .left-ear, svg .right-ear{
   position:absolute;z-index:1;
   max-width:min(90vw,90vh);
   max-height:min(90vw,90vh);
-  width:auto;height:auto;
+  width:min(90vw,90vh);height:min(90vw,90vh);
+  object-fit:cover;
   border-radius:16px;
   box-shadow:0 24px 80px rgba(0,0,0,.6);
   transform-origin:50% 50%;
