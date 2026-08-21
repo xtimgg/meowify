@@ -22743,8 +22743,8 @@ function closeModal() { document.getElementById('modal').classList.remove('on');
     // inject img - positioned absolute, centered via top/left 50%
     content.innerHTML = `<img id="cover-lightbox-img" src="${src}" alt="" draggable="false"
       style="position:absolute;top:50%;left:50%;transform-origin:50% 50%;
-             max-width:min(90vw,90vh);max-height:min(90vw,90vh);
-             width:auto;height:auto;border-radius:16px;
+             width:min(90vw,90vh);height:min(90vw,90vh);object-fit:cover;
+             border-radius:16px;
              box-shadow:0 24px 80px rgba(0,0,0,.6);
              touch-action:none;user-select:none;cursor:grab;display:block;">`;
     const lbl = _lbLabel(); if (lbl) lbl.textContent = '100%';
