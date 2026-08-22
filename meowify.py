@@ -8461,12 +8461,18 @@ def api_song_patch(sid):
         cols = ', '.join(f"{k}=?" for k in updates)
         c.execute(f"UPDATE songs SET {cols}, modified_at=? WHERE id=?",
                   (*updates.values(), int(time.time()), sid))
-        # keep song_artists junction rows in sync whenever artist/featuring changes -
-        # same helper the app's own enrichment paths use, so this can't silently
-        # desync the relational layer the way a bare column overwrite would.
+        # keep song_artists junction rows in sync whenever artist/featuring changes
         if 'artist' in updates or 'featuring_artists' in updates:
             _sa = c.execute("SELECT artist, featuring_artists FROM songs WHERE id=?", (sid,)).fetchone()
             _upsert_song_artists(c, sid, _sa[0] or '', _sa[1] or '')
+        # keep album_tracks.title in sync when title changes — if this song is linked
+        # as song_id in an album_tracks row, update that row's title so _relink_album_tracks
+        # can still match by title after the edit (and so synced peers don't re-insert
+        # a stale-titled unlinked row on their next merge)
+        if 'title' in updates:
+            c.execute(
+                "UPDATE album_tracks SET title=? WHERE song_id=?",
+                (updates['title'], sid))
     return jsonify({'ok': True})
 
 @app.route('/api/songs/<sid>/cover-upload', methods=['POST'])
