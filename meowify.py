@@ -10838,7 +10838,7 @@ body.design-glassy .list-header.pinned::before{
     <div id="global-prog" style="height:3px;background:var(--color-surface-container-highest);flex-shrink:0;display:none"><div id="global-prog-fill" style="height:100%;background:var(--color-primary);transition:width .4s;width:0%"></div></div>
     <div id="global-prog-status" style="display:none;padding:2px 24px;font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);flex-shrink:0;background:var(--color-surface)"></div>
     <div id="content-area">
-      <div id="vc"></div>
+      <div id="vc-wrap"><div id="vc"></div></div>
       <div id="lyrics-sidebar" class="lyrics-sidebar ui-sidebar hidden">
         <div id="lyrics-resize-handle" style="
           position:absolute;left:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10;
