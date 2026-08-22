@@ -8946,6 +8946,7 @@ svg .left-ear, svg .right-ear{
 }
 .topbar-acts{display:flex;gap:8px;flex-shrink:0;min-width:0}
 #content-area{flex:1;display:flex;overflow:hidden}
+#vc-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 #content-area *::-webkit-scrollbar-track{margin-bottom:var(--bar-track-margin)}
 #vc{flex:1;overflow:auto;padding:0 24px var(--bar-h)}
 #app.mobile #vc{padding-left:8px;padding-right:8px}
