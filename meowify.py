@@ -4009,7 +4009,7 @@ def _cleanup_ghost_albums():
                             c.execute(
                                 "INSERT INTO album_tracks (id,album_id,song_id,title,artist,track_num) "
                                 "VALUES (?,?,?,?,?,?)",
-                                (str(uuid.uuid4()), aid, s[0], s[1], s[2], s[3] or 1))
+                                (str(uuid.uuid4()), aid, s[0], s[1], s[2], s[3] if s[3] else 1))
                             fixed += 1
                 else:
                     c.execute("DELETE FROM albums WHERE id=?", (aid,))
