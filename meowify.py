@@ -18093,14 +18093,10 @@ function _showSyncToast(msg) {
 async function triggerForceSync() {
   if (!window._dbxConnected || window._dbxSyncing) return;
   window._dbxSyncing = true;
-  _showSyncToast('syncing with dropbox…');
   try {
     const kick = await fetch('/api/dropbox/sync', {method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({push_songs:true})}).then(r=>r.json());
-    if (!kick.ok && kick.error === 'sync already in progress') {
-      _showSyncToast('sync already running…');
-    }
     // phase 1: fast poll until db merge done (~2-5s) then reload library immediately
     for (let i = 0; i < 30; i++) {
       await new Promise(r => setTimeout(r, 500));
@@ -18109,7 +18105,6 @@ async function triggerForceSync() {
       if (window._dbxDbReady || !window._dbxSyncingRemote) {
         await loadData();
         renderLibrary();
-        _showSyncToast('library updated — downloading files…');
         break;
       }
     }
@@ -18124,10 +18119,8 @@ async function triggerForceSync() {
     if (_dbxTabIsOpen()) renderSettings();
     await loadData();
     renderLibrary();
-    _showSyncToast('sync complete ✓');
-  } catch(e) {
-    _showSyncToast('sync failed');
-  } finally {
+  } catch(e) {}
+  finally {
     window._dbxSyncing = false;
   }
 }
