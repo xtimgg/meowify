@@ -7888,6 +7888,10 @@ def api_import_backup():
                         _restored_cfg = json.loads(zf.read(name).decode('utf-8'))
                         if not isinstance(_restored_cfg, dict):
                             raise ValueError('settings.json in backup is not a JSON object')
+                        # always remap data_dir to the current machine — the backup's
+                        # data_dir is the source machine's path (e.g. a windows path
+                        # being imported on android) and must never be restored as-is
+                        _restored_cfg['data_dir'] = str(_HOME)
                         with _cfg_lock:
                             save_cfg(_restored_cfg)
                     except Exception as _sce:
