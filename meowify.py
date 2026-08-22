@@ -6237,8 +6237,51 @@ def _dbx_merge_db(local_path, remote_path):
                         f'(lyrics.fetched_at IS NULL OR excluded.fetched_at > lyrics.fetched_at)',
                         rows
                     )
+                elif tbl == 'album_tracks':
+                    # deduplicate by (album_id, track_num) and (album_id, genius_song_id)
+                    # rather than bare INSERT OR IGNORE on id — remote rows have different
+                    # UUIDs so IGNORE only deduplicates exact id matches, causing the same
+                    # track to accumulate on every sync
+                    at_aid_idx   = cols.index('album_id')       if 'album_id'       in cols else None
+                    at_tnum_idx  = cols.index('track_num')      if 'track_num'      in cols else None
+                    at_gsid_idx  = cols.index('genius_song_id') if 'genius_song_id' in cols else None
+                    at_sid_idx   = cols.index('song_id')        if 'song_id'        in cols else None
+                    at_vid_idx   = cols.index('video_id')       if 'video_id'       in cols else None
+                    at_gdat_idx  = cols.index('genius_data')    if 'genius_data'    in cols else None
+                    at_title_idx = cols.index('title')          if 'title'          in cols else None
+                    at_art_idx   = cols.index('artist')         if 'artist'         in cols else None
+                    for row in rows:
+                        aid    = row[at_aid_idx]   if at_aid_idx   is not None else None
+                        tnum   = row[at_tnum_idx]  if at_tnum_idx  is not None else None
+                        gsid   = row[at_gsid_idx]  if at_gsid_idx  is not None else None
+                        sid_v  = row[at_sid_idx]   if at_sid_idx   is not None else None
+                        vid    = row[at_vid_idx]    if at_vid_idx   is not None else None
+                        gdat   = row[at_gdat_idx]  if at_gdat_idx  is not None else None
+                        title_ = row[at_title_idx] if at_title_idx is not None else None
+                        art_   = row[at_art_idx]   if at_art_idx   is not None else None
+                        # try to find an existing row by genius_song_id first, then track_num
+                        existing = None
+                        if gsid:
+                            existing = c.execute(
+                                "SELECT id FROM album_tracks WHERE album_id=? AND genius_song_id=?",
+                                (aid, gsid)).fetchone()
+                        if not existing and tnum is not None:
+                            existing = c.execute(
+                                "SELECT id FROM album_tracks WHERE album_id=? AND track_num=? AND genius_song_id IS NULL",
+                                (aid, tnum)).fetchone()
+                        if existing:
+                            c.execute(
+                                "UPDATE album_tracks SET "
+                                "song_id=COALESCE(song_id,?), genius_song_id=COALESCE(genius_song_id,?), "
+                                "video_id=COALESCE(video_id,?), genius_data=COALESCE(genius_data,?) "
+                                "WHERE id=?",
+                                (sid_v, gsid, vid, gdat, existing[0]))
+                        else:
+                            c.execute(
+                                f'INSERT OR IGNORE INTO album_tracks ({col_str}) VALUES ({placeholders})',
+                                row)
                 else:
-                    # play_events, song_artists, album_tracks - union / ignore duplicates
+                    # play_events, song_artists — union / ignore duplicates
                     c.executemany(
                         f'INSERT OR IGNORE INTO {tbl} ({col_str}) VALUES ({placeholders})',
                         rows
