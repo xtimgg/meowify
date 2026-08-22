@@ -18131,10 +18131,11 @@ async function triggerForceSync() {
   const vc = document.getElementById('vc');
   if (!vc) return;
   MU.pullToRefresh(vc, triggerForceSync, {
-    barHeight: 40,
-    canPull:   () => isMobile() && S.view === 'library' && !!window._dbxConnected,
-    label:     'syncing with dropbox…',
-    doneLabel: 'sync complete ✓',
+    barHeight:     40,
+    canPull:       () => isMobile() && S.view === 'library' && !!window._dbxConnected,
+    label:         'syncing with dropbox…',
+    doneLabel:     'synced ✓',
+    indeterminate: true,
   });
 })();
 
