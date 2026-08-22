@@ -18108,11 +18108,18 @@ async function triggerForceSync() {
         break;
       }
     }
-    // phase 2: lazy poll until file downloads finish
+    // phase 2: lazy poll until file downloads finish — drive progress bar from tracks+covers
     for (let i = 0; i < 180; i++) {
       await new Promise(r => setTimeout(r, 2000));
       await refreshDbxStatus();
       if (_dbxTabIsOpen()) renderSettings();
+      const p = window._dbxProgress || {};
+      const done  = (p.tracks?.done  || 0) + (p.covers?.done  || 0);
+      const total = (p.tracks?.total || 0) + (p.covers?.total || 0);
+      if (total > 0 && window._ptrHandle) {
+        window._ptrHandle.setProgress(done / total);
+        window._ptrHandle.setLabel(done < total ? `downloading ${done}/${total}…` : 'finishing…');
+      }
       if (!window._dbxSyncingRemote) break;
     }
     await refreshDbxStatus();
