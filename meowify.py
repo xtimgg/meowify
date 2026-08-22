@@ -7894,6 +7894,11 @@ def api_import_backup():
                         _restored_cfg['data_dir'] = str(_HOME)
                         with _cfg_lock:
                             save_cfg(_restored_cfg)
+                        # reload CFG immediately so ddir()/mdir()/cdir() use the
+                        # correct path for all subsequent writes in this loop
+                        global CFG
+                        CFG = load_cfg()
+                        mkdirs()
                     except Exception as _sce:
                         _log_backup.warning('backup import: skipped invalid settings.json in archive: %s', _sce)
                 elif posix_name in ('library.db', 'session.json'):
