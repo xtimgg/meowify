@@ -7972,8 +7972,6 @@ def api_import_backup():
                 except Exception as _cfe:
                     _log_backup.warning(f'[restore] cfg update err: {_cfe}')
 
-        global CFG
-        CFG = load_cfg()
         init_db()
         return jsonify({'ok': True})
     except zipfile.BadZipFile:
