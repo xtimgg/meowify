@@ -4029,7 +4029,7 @@ def _cleanup_sync_actions():
     try:
         with db() as c:
             # pref_reset: delete all but the newest per device+key
-            c.execute("""
+            cur = c.execute("""
                 DELETE FROM sync_actions
                 WHERE action='pref_reset'
                 AND id NOT IN (
@@ -4045,10 +4045,10 @@ def _cleanup_sync_actions():
                     )
                 )
             """)
-            removed += c.rowcount
+            removed += cur.rowcount
             # general: prune anything older than 90 days that isn't the sole record for its target
             cutoff = int(time.time()) - 90 * 86400
-            c.execute("""
+            cur = c.execute("""
                 DELETE FROM sync_actions
                 WHERE ts < ? AND id NOT IN (
                     SELECT id FROM sync_actions sa2
@@ -4060,7 +4060,7 @@ def _cleanup_sync_actions():
                     )
                 )
             """, (cutoff,))
-            removed += c.rowcount
+            removed += cur.rowcount
         _log_cleanup.info(f'_cleanup_sync_actions: removed {removed} rows')
     except Exception as e:
         _log_cleanup.warning('_cleanup_sync_actions err: %s', e)
