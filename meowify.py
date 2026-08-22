@@ -5785,6 +5785,13 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
             known_remote = _remote_db_hash_after_pull if _remote_db_hash_after_pull is not None \
                            else _dbx_remote_hash(dbx, remote_db)
             if local_hash_now != known_remote:
+                # run lightweight integrity cleanup before upload so peers don't
+                # inherit duplicate album_tracks rows or stale pref_reset storms
+                try:
+                    _dedupe_album_tracks()
+                    _cleanup_sync_actions()
+                except Exception as _ce:
+                    _log_sync.warning('pre-upload cleanup err: %s', _ce)
                 _status('uploading library...')
                 _dbx_upload(dbx, local_db, remote_db)
                 results['pushed'].append('library.db')
