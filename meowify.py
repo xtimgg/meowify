@@ -18131,115 +18131,17 @@ async function triggerForceSync() {
   }
 }
 
-// pull-to-refresh on mobile library view
+// pull-to-refresh on mobile library view — powered by MU.pullToRefresh
 (function _initPullToRefresh() {
-  const PTR_THRESHOLD = 72;  // px of drag needed to trigger
-  const INDICATOR_SIZE = 38;
-  let _startY = 0, _pulling = false, _indicator = null, _topbarBottom = 0;
-
-  if (!document.getElementById('_ptr-spin-style')) {
-    const s = document.createElement('style');
-    s.id = '_ptr-spin-style';
-    s.textContent = '@keyframes _ptr-spin{to{transform:rotate(360deg)}}';
-    document.head.appendChild(s);
-  }
-
-  function _getTopbarBottom() {
-    const tb = document.querySelector('.topbar');
-    return tb ? tb.getBoundingClientRect().bottom : 0;
-  }
-
-  function _getOrCreateIndicator() {
-    if (_indicator) return _indicator;
-    _indicator = document.createElement('div');
-    _indicator.id = '_ptr-indicator';
-    _indicator.style.cssText =
-      `position:fixed;left:50%;` +
-      `width:${INDICATOR_SIZE}px;height:${INDICATOR_SIZE}px;border-radius:50%;` +
-      `background:var(--color-surface-container-high);` +
-      `display:flex;align-items:center;justify-content:center;` +
-      `box-shadow:0 2px 12px #0005;` +
-      `opacity:0;z-index:9999;pointer-events:none;` +
-      `transform:translateX(-50%) translateY(-${INDICATOR_SIZE + 8}px);` +
-      `color:var(--color-on-surface)`;
-    _indicator.innerHTML =
-      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
-      '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>';
-    document.body.appendChild(_indicator);
-    return _indicator;
-  }
-
-  function _setIndPos(dy) {
-    // clamp drag with rubber-band feel: full resistance after threshold
-    const pull = dy < PTR_THRESHOLD ? dy : PTR_THRESHOLD + (dy - PTR_THRESHOLD) * 0.25;
-    const progress = Math.min(pull / PTR_THRESHOLD, 1);
-    // start hidden above topbar, slide down to 8px below it
-    const hiddenY = _topbarBottom - INDICATOR_SIZE - 8;  // starts above topbar
-    const shownY  = _topbarBottom + 8;
-    const curY    = hiddenY + (shownY - hiddenY) * progress;
-    return { pull, progress, curY };
-  }
-
-  document.addEventListener('touchstart', e => {
-    if (!isMobile() || S.view !== 'library' || !window._dbxConnected) return;
-    const vc = document.getElementById('vc');
-    if (!vc || vc.scrollTop > 2) return;  // small tolerance for momentum
-    _startY = e.touches[0].clientY;
-    _topbarBottom = _getTopbarBottom();
-    _pulling = true;
-  }, {passive: true});
-
-  document.addEventListener('touchmove', e => {
-    if (!_pulling) return;
-    const dy = e.touches[0].clientY - _startY;
-    if (dy <= 0) { _pulling = false; _ptrHide(); return; }
-    const ind = _getOrCreateIndicator();
-    const { progress, curY } = _setIndPos(dy);
-    // no transition during drag — must follow finger instantly
-    ind.style.transition = 'none';
-    ind.style.top = curY + 'px';
-    ind.style.transform = `translateX(-50%) rotate(${progress * 300}deg)`;
-    ind.style.opacity = Math.min(progress * 1.5, 1);  // fade in faster than pull progress
-  }, {passive: true});
-
-  function _ptrHide() {
-    if (!_indicator) return;
-    _indicator.style.transition = 'opacity .2s,transform .2s';
-    _indicator.style.opacity = '0';
-    _indicator.style.transform = `translateX(-50%) translateY(-${INDICATOR_SIZE + 8}px)`;
-  }
-
-  function _ptrCancel() {
-    if (!_pulling) return;
-    _pulling = false;
-    _ptrHide();
-  }
-  document.addEventListener('touchcancel', _ptrCancel, {passive: true});
-
-  document.addEventListener('touchend', async e => {
-    if (!_pulling) return;
-    _pulling = false;
-    const dy = e.changedTouches[0].clientY - _startY;
-    const ind = _indicator;
-    if (!ind) return;
-    if (dy >= PTR_THRESHOLD && !window._dbxSyncing) {
-      // snap to resting position and spin
-      const shownY = _topbarBottom + 8;
-      ind.style.transition = 'top .15s,transform .15s,opacity .15s';
-      ind.style.top = shownY + 'px';
-      ind.style.transform = 'translateX(-50%) rotate(0deg)';
-      ind.style.opacity = '1';
-      // start spin after snap settles
-      setTimeout(() => {
-        if (!ind) return;
-        ind.style.transition = 'none';
-        ind.querySelector('svg').style.animation = '_ptr-spin .7s linear infinite';
-      }, 150);
-      await triggerForceSync();
-      ind.querySelector('svg').style.animation = '';
-    }
-    _ptrHide();
-  }, {passive: true});
+  if (!window.MU) return;
+  const vc = document.getElementById('vc');
+  if (!vc) return;
+  MU.pullToRefresh(vc, () => triggerForceSync(), {
+    barHeight: 40,
+    canPull:   () => isMobile() && S.view === 'library' && !!window._dbxConnected && !window._dbxSyncing,
+    label:     'syncing with dropbox…',
+    doneLabel: 'sync complete ✓',
+  });
 })();
 
 async function dbxRefreshPeers() {
