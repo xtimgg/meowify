@@ -7975,11 +7975,17 @@ def api_cleanup():
     songs_merged = merge_duplicate_songs()
     dedupe_removed = _dedupe_album_tracks()
     _relink_album_tracks()
+    ghost_fixed, ghost_removed = _cleanup_ghost_albums()
+    sync_actions_removed = _cleanup_sync_actions()
     with db() as c:
         _migrate_artists(c)
         _migrate_stats_canonical_artist(c)
         stats_merged = merge_duplicate_stats(c)
-    return jsonify({'ok': True, 'covers_merged': merged, 'albums_merged': albums_merged, 'songs_merged': songs_merged, 'dedupe_removed': dedupe_removed, 'stats_merged': stats_merged, **stats})
+    return jsonify({'ok': True, 'covers_merged': merged, 'albums_merged': albums_merged,
+                    'songs_merged': songs_merged, 'dedupe_removed': dedupe_removed,
+                    'stats_merged': stats_merged, 'ghost_albums_fixed': ghost_fixed,
+                    'ghost_albums_removed': ghost_removed,
+                    'sync_actions_removed': sync_actions_removed, **stats})
 
 @app.route('/api/songs/<sid>/analyze-loudness', methods=['POST'])
 def api_analyze_loudness(sid):
