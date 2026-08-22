@@ -3984,6 +3984,89 @@ def merge_duplicate_songs(throttle=False):
         _log_cleanup.warning('merge_duplicate_songs err: %s', e)
     return merged_count
 
+def _cleanup_ghost_albums():
+    """Albums that have no album_tracks rows at all. Two cases:
+    1. Song points to the album (single-track YT download where tracklist fetch failed)
+       — insert a minimal album_tracks row so the song appears on its album page.
+    2. No song points to the album — dead album row, delete it."""
+    removed = 0
+    fixed = 0
+    try:
+        with db() as c:
+            ghost_ids = [r[0] for r in c.execute(
+                "SELECT id FROM albums WHERE id NOT IN (SELECT album_id FROM album_tracks)"
+            ).fetchall()]
+            for aid in ghost_ids:
+                songs = c.execute(
+                    "SELECT id, title, artist, track_num FROM songs WHERE album_id=?", (aid,)
+                ).fetchall()
+                if songs:
+                    for s in songs:
+                        existing = c.execute(
+                            "SELECT id FROM album_tracks WHERE album_id=? AND song_id=?",
+                            (aid, s[0])).fetchone()
+                        if not existing:
+                            c.execute(
+                                "INSERT INTO album_tracks (id,album_id,song_id,title,artist,track_num) "
+                                "VALUES (?,?,?,?,?,?)",
+                                (str(uuid.uuid4()), aid, s[0], s[1], s[2], s[3] or 1))
+                            fixed += 1
+                else:
+                    c.execute("DELETE FROM albums WHERE id=?", (aid,))
+                    removed += 1
+        _log_cleanup.info(f'_cleanup_ghost_albums: fixed {fixed}, removed {removed}')
+    except Exception as e:
+        _log_cleanup.warning('_cleanup_ghost_albums err: %s', e)
+    return fixed, removed
+
+
+def _cleanup_sync_actions():
+    """Trim redundant sync_actions rows:
+    - pref_reset: keep only the newest per (device_id, target) key — older ones
+      are irrelevant once a newer reset for the same pref exists
+    - Prune any sync_actions older than 90 days that aren't the newest for their target"""
+    removed = 0
+    try:
+        with db() as c:
+            # pref_reset: delete all but the newest per device+key
+            c.execute("""
+                DELETE FROM sync_actions
+                WHERE action='pref_reset'
+                AND id NOT IN (
+                    SELECT id FROM sync_actions sa2
+                    WHERE sa2.action='pref_reset'
+                    GROUP BY sa2.device_id, sa2.target
+                    HAVING sa2.id = (
+                        SELECT id FROM sync_actions sa3
+                        WHERE sa3.action='pref_reset'
+                        AND sa3.device_id=sa2.device_id
+                        AND sa3.target=sa2.target
+                        ORDER BY sa3.ts DESC LIMIT 1
+                    )
+                )
+            """)
+            removed += c.rowcount
+            # general: prune anything older than 90 days that isn't the sole record for its target
+            cutoff = int(time.time()) - 90 * 86400
+            c.execute("""
+                DELETE FROM sync_actions
+                WHERE ts < ? AND id NOT IN (
+                    SELECT id FROM sync_actions sa2
+                    GROUP BY sa2.action, sa2.target
+                    HAVING sa2.id = (
+                        SELECT id FROM sync_actions sa3
+                        WHERE sa3.action=sa2.action AND sa3.target=sa2.target
+                        ORDER BY sa3.ts DESC LIMIT 1
+                    )
+                )
+            """, (cutoff,))
+            removed += c.rowcount
+        _log_cleanup.info(f'_cleanup_sync_actions: removed {removed} rows')
+    except Exception as e:
+        _log_cleanup.warning('_cleanup_sync_actions err: %s', e)
+    return removed
+
+
 def cleanup_orphans():
     stats = {'orphaned_files': 0, 'stuck_downloads': 0, 'empty_albums': 0}
     stuck_covers = []
