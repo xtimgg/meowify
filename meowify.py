@@ -18102,23 +18102,24 @@ async function triggerForceSync() {
       await new Promise(r => setTimeout(r, 500));
       await refreshDbxStatus();
       if (_dbxTabIsOpen()) renderSettings();
+      if (window._ptrHandle && window._dbxStatus) window._ptrHandle.setLabel(window._dbxStatus);
       if (window._dbxDbReady || !window._dbxSyncingRemote) {
         await loadData();
         renderLibrary();
         break;
       }
     }
-    // phase 2: lazy poll until file downloads finish — drive progress bar from tracks+covers
+    // phase 2: lazy poll until file downloads finish — mirror status + drive progress from tracks+covers
     for (let i = 0; i < 180; i++) {
       await new Promise(r => setTimeout(r, 2000));
       await refreshDbxStatus();
       if (_dbxTabIsOpen()) renderSettings();
-      const p = window._dbxProgress || {};
-      const done  = (p.tracks?.done  || 0) + (p.covers?.done  || 0);
-      const total = (p.tracks?.total || 0) + (p.covers?.total || 0);
-      if (total > 0 && window._ptrHandle) {
-        window._ptrHandle.setProgress(done / total);
-        window._ptrHandle.setLabel(done < total ? `downloading ${done}/${total}…` : 'finishing…');
+      if (window._ptrHandle) {
+        if (window._dbxStatus) window._ptrHandle.setLabel(window._dbxStatus);
+        const p = window._dbxProgress || {};
+        const done  = (p.tracks?.done  || 0) + (p.covers?.done  || 0);
+        const total = (p.tracks?.total || 0) + (p.covers?.total || 0);
+        if (total > 0) window._ptrHandle.setProgress(done / total);
       }
       if (!window._dbxSyncingRemote) break;
     }
