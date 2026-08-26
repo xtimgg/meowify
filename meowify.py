@@ -22653,67 +22653,270 @@ async function rmFromPl(pid, sid) {
 }
 
 // ═══════════════════════════════════════════════
-// DRAG & DROP REORDER
+// DRAG & DROP REORDER (pointer-based, shared)
 // ═══════════════════════════════════════════════
+
+// opts: {
+//   getList()       → current ordered array of items
+//   getId(item)     → string id for item
+//   onCommit(newList, prevList) → called async after drop
+//   scrollEl        → the scrollable container el (for auto-scroll)
+//   disableVlist()  → optional, called before drag to flatten vlist
+//   enableVlist()   → optional, called after commit
+// }
+function initReorderDrag(listEl, opts) {
+  if (!listEl) return;
+  const LIFT_SCALE   = 1.02;
+  const LIFT_SHADOW  = '0 8px 32px rgba(0,0,0,.28)';
+  const ANIM_MS      = 160;
+  const HOLD_MS      = 120;   // pointer must be held this long before drag activates
+  const MOVE_THRESH  = 6;     // px movement to confirm drag intent
+  const SCROLL_ZONE  = 60;    // px from edge to trigger auto-scroll
+  const SCROLL_MAX   = 18;    // px/frame max auto-scroll speed
+
+  let _row = null;       // the actual DOM row being lifted
+  let _spacer = null;    // invisible placeholder keeping the gap
+  let _rowH = 0;
+  let _holdTimer = null;
+  let _armed = false;    // pointerdown happened, waiting for hold/move
+  let _active = false;   // drag is actually in progress
+  let _pointerId = null;
+  let _startY = 0;       // pointer Y at lift moment
+  let _startPageY = 0;
+  let _rowOrigTop = 0;   // row's getBCR().top at lift moment
+  let _fixedTop = 0;     // current top of lifted row (fixed px)
+  let _prevInsertBefore = null; // last insertBefore target for spacer
+  let _scrollRaf = null;
+  let _prevList = null;
+
+  function _rows() {
+    return [...listEl.querySelectorAll('.song-row:not(.drag-spacer)')];
+  }
+
+  function _cancelHold() {
+    clearTimeout(_holdTimer); _holdTimer = null; _armed = false;
+  }
+
+  function _lift(row, pointerY) {
+    _active = true;
+    _row = row;
+    _prevList = opts.getList().slice();
+
+    const rect = row.getBoundingClientRect();
+    _rowH = rect.height;
+    _rowOrigTop = rect.top;
+    _fixedTop = rect.top;
+
+    // spacer — same height, invisible, stays in the list flow
+    _spacer = document.createElement('div');
+    _spacer.className = 'drag-spacer';
+    _spacer.style.cssText = `height:${_rowH}px;flex-shrink:0;pointer-events:none;`;
+    row.after(_spacer);
+
+    // lift the row out of flow: position fixed, same visual position
+    row.style.cssText += `;position:fixed;top:${_fixedTop}px;left:${rect.left}px;width:${rect.width}px;` +
+      `z-index:9990;margin:0;contain:none;` +
+      `transform:scale(${LIFT_SCALE});box-shadow:${LIFT_SHADOW};` +
+      `transition:box-shadow ${ANIM_MS}ms,transform ${ANIM_MS}ms;` +
+      `border-radius:var(--radius-md);`;
+
+    // neighbors: enable smooth translateY transitions
+    _rows().forEach(r => {
+      r.style.transition = `transform ${ANIM_MS}ms var(--ease-out)`;
+    });
+
+    _startY = pointerY;
+    listEl.setPointerCapture(_pointerId);
+    _scheduleScroll();
+  }
+
+  function _move(pointerY) {
+    if (!_active) return;
+    const dy = pointerY - _startY;
+    _fixedTop = _rowOrigTop + dy;
+    _row.style.top = _fixedTop + 'px';
+
+    // find insertion point by comparing spacer midpoint with other rows
+    const midY = _fixedTop + _rowH / 2;
+    const allRows = _rows();
+    let insertBefore = null;
+    for (const r of allRows) {
+      const rb = r.getBoundingClientRect();
+      if (midY < rb.top + rb.height / 2) { insertBefore = r; break; }
+    }
+
+    if (insertBefore !== _prevInsertBefore) {
+      _prevInsertBefore = insertBefore;
+      if (insertBefore) listEl.insertBefore(_spacer, insertBefore);
+      else listEl.appendChild(_spacer);
+    }
+  }
+
+  function _scheduleScroll() {
+    if (!_active) return;
+    _scrollRaf = requestAnimationFrame(() => {
+      if (!_active) return;
+      const sc = opts.scrollEl;
+      if (sc) {
+        const scRect = sc.getBoundingClientRect();
+        const relTop = _fixedTop - scRect.top;
+        const relBot = _fixedTop + _rowH - scRect.top;
+        const visH = scRect.height;
+        let speed = 0;
+        if (relTop < SCROLL_ZONE)       speed = -SCROLL_MAX * (1 - relTop / SCROLL_ZONE);
+        else if (relBot > visH - SCROLL_ZONE) speed = SCROLL_MAX * (1 - (visH - relBot) / SCROLL_ZONE);
+        if (speed) {
+          sc.scrollTop += speed;
+          // recompute row positions after scroll — shift _rowOrigTop so row follows
+          _rowOrigTop -= speed;
+        }
+      }
+      _scheduleScroll();
+    });
+  }
+
+  async function _drop() {
+    if (!_active) return;
+    _active = false;
+    cancelAnimationFrame(_scrollRaf);
+
+    // read new order from DOM (spacer position = dropped position)
+    const spacerIdx = [...listEl.children].indexOf(_spacer);
+    const newIds = [...listEl.querySelectorAll('.song-row:not(.drag-spacer)')].map(r => r.dataset.id);
+    newIds.splice(spacerIdx, 0, _row.dataset.id);
+
+    // snap row into final position (where spacer is) before restoring flow
+    const spacerRect = _spacer.getBoundingClientRect();
+    _row.style.transition = `top ${ANIM_MS}ms var(--ease-out),transform ${ANIM_MS}ms,box-shadow ${ANIM_MS}ms`;
+    _row.style.top = spacerRect.top + 'px';
+    _row.style.transform = 'scale(1)';
+    _row.style.boxShadow = 'none';
+
+    await new Promise(r => setTimeout(r, ANIM_MS));
+
+    // restore row to normal flow
+    _spacer.replaceWith(_row);
+    _row.style.cssText = _row.style.cssText
+      .replace(/position:[^;]+;/g, '')
+      .replace(/top:[^;]+;/g, '')
+      .replace(/left:[^;]+;/g, '')
+      .replace(/width:[^;]+;/g, '')
+      .replace(/z-index:[^;]+;/g, '')
+      .replace(/margin:[^;]+;/g, '')
+      .replace(/contain:[^;]+;/g, '')
+      .replace(/transform:[^;]+;/g, '')
+      .replace(/box-shadow:[^;]+;/g, '')
+      .replace(/transition:[^;]+;/g, '');
+    _rows().forEach(r => { r.style.transition = ''; });
+
+    _spacer = null; _row = null; _prevInsertBefore = null;
+
+    await opts.onCommit(newIds, _prevList ? _prevList.map(opts.getId) : []);
+    _prevList = null;
+  }
+
+  function _cancel() {
+    if (!_active) return;
+    _active = false;
+    cancelAnimationFrame(_scrollRaf);
+    if (_spacer) { _spacer.replaceWith(_row); _spacer = null; }
+    if (_row) {
+      _row.style.cssText = _row.style.cssText
+        .replace(/position:[^;]+;/g, '')
+        .replace(/top:[^;]+;/g, '')
+        .replace(/left:[^;]+;/g, '')
+        .replace(/width:[^;]+;/g, '')
+        .replace(/z-index:[^;]+;/g, '')
+        .replace(/margin:[^;]+;/g, '')
+        .replace(/contain:[^;]+;/g, '')
+        .replace(/transform:[^;]+;/g, '')
+        .replace(/box-shadow:[^;]+;/g, '')
+        .replace(/transition:[^;]+;/g, '');
+      _row = null;
+    }
+    _rows().forEach(r => { r.style.transition = ''; });
+    _prevList = null; _prevInsertBefore = null;
+  }
+
+  // ── event listeners on listEl ─────────────────────────────────────────────
+  listEl.addEventListener('pointerdown', e => {
+    // only primary button / single touch; ignore if inside a button/link
+    if (e.button && e.button !== 0) return;
+    if (e.target.closest('button,a,[role=button]')) return;
+    const row = e.target.closest('.song-row');
+    if (!row || row.classList.contains('drag-spacer')) return;
+    _pointerId = e.pointerId;
+    _armed = true;
+    _startPageY = e.clientY;
+    // don't prevent default yet — allow scroll on touch
+    _holdTimer = setTimeout(() => {
+      if (!_armed) return;
+      _armed = false;
+      _lift(row, _startPageY);
+    }, HOLD_MS);
+  });
+
+  listEl.addEventListener('pointermove', e => {
+    if (e.pointerId !== _pointerId) return;
+    if (_active) { e.preventDefault(); _move(e.clientY); return; }
+    if (!_armed) return;
+    // if finger moved enough before hold timer, treat as scroll — cancel
+    if (Math.abs(e.clientY - _startPageY) > MOVE_THRESH && !_active) {
+      _cancelHold();
+    }
+  }, { passive: false });
+
+  listEl.addEventListener('pointerup', e => {
+    if (e.pointerId !== _pointerId) return;
+    _cancelHold();
+    if (_active) _drop();
+  });
+
+  listEl.addEventListener('pointercancel', e => {
+    if (e.pointerId !== _pointerId) return;
+    _cancelHold();
+    _cancel();
+  });
+}
+
 function initDrag(pid) {
-  const container = document.getElementById('pl-rows');
-  if (!container) return;
-  let dragged = null;
-  container.querySelectorAll('.song-row').forEach(row => {
-    row.addEventListener('dragstart', e => {
-      dragged = row; row.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', row.dataset.id);
-    });
-    row.addEventListener('dragend', () => { row.style.opacity = ''; dragged = null; });
-    row.addEventListener('dragover', e => {
-      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-      const after = getDragAfter(container, e.clientY);
-      if (after) container.insertBefore(dragged, after); else container.appendChild(dragged);
-    });
-    row.addEventListener('drop', async e => {
-      e.preventDefault();
-      const prevOrder = S.plSongs[pid] ? S.plSongs[pid].map(s => s.id) : [];
-      const order = [...container.children].map(c => c.dataset.id);
-      await api('POST', '/api/playlists/' + pid + '/reorder', {order});
-      const idMap = new Map(S.plSongs[pid].map(s => [s.id, s]));
-      S.plSongs[pid] = order.map(id => idMap.get(id)).filter(Boolean);
-      S.viewSongs = [...S.plSongs[pid]];
+  const listEl = document.getElementById('pl-rows');
+  if (!listEl) return;
+  initReorderDrag(listEl, {
+    getList: () => S.plSongs[pid] || [],
+    getId: s => s.id,
+    scrollEl: document.getElementById('vc'),
+    onCommit: async (newIds, prevIds) => {
+      const idMap = new Map((S.plSongs[pid] || []).map(s => [s.id, s]));
+      const newList = newIds.map(id => idMap.get(id)).filter(Boolean);
+      S.plSongs[pid] = newList;
+      S.viewSongs = [...newList];
       _rebuildViewIdx();
-      container.querySelectorAll('.song-row').forEach((r, i) => {
+      // update snum display
+      listEl.querySelectorAll('.song-row').forEach((r, i) => {
         r.dataset.idx = i;
-        const snum = r.querySelector('.snum');
-        if (snum) snum.textContent = (i + 1);
+        const sn = r.querySelector('.snum-num');
+        if (sn && sn.textContent && !r.classList.contains('playing')) sn.textContent = i + 1;
       });
-      // sync queue to new playlist order (only if not shuffled - shuffle order is intentional)
+      // sync queue
       if (!S.shuffle && S.queueSource.type === 'playlist' && S.queueSource.id === pid) {
         const curId = S.cur?.id;
-        const newOrder = S.plSongs[pid];
-        // preserve only songs still in queue (queue may be a subset if songs were removed)
         const queueIds = new Set(S.queue.map(s => s.id));
-        S.queue = newOrder.filter(s => queueIds.has(s.id));
+        S.queue = newList.filter(s => queueIds.has(s.id));
         S.qi = curId ? Math.max(0, S.queue.findIndex(s => s.id === curId)) : 0;
         if (S.queueOpen) renderQueueSidebar();
       }
+      await api('POST', '/api/playlists/' + pid + '/reorder', {order: newIds});
       _pushUndo({
         desc: 'reorder playlist',
         undo: async () => {
-          await api('POST', '/api/playlists/' + pid + '/reorder', {order: prevOrder});
+          await api('POST', '/api/playlists/' + pid + '/reorder', {order: prevIds});
           S.plSongs[pid] = undefined;
           return null;
         }
       });
-    });
+    }
   });
-}
-
-function getDragAfter(container, y) {
-  const rows = [...container.querySelectorAll('.song-row:not([style*="opacity: 0.4"])')];
-  return rows.reduce((closest, row) => {
-    const box = row.getBoundingClientRect();
-    const offset = y - box.top - box.height/2;
-    if (offset < 0 && offset > closest.offset) return {offset, element: row};
-    return closest;
-  }, {offset: -Infinity}).element;
 }
 
 // ═══════════════════════════════════════════════
