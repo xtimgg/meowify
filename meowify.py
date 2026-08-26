@@ -17736,6 +17736,21 @@ function renderQueueSidebar() {
     });
     row.addEventListener('click', () => { S.qi = i; S.cur = S.queue[i]; playSong(S.cur); });
   });
+  // drag-to-reorder for small queue
+  const _qListEl = inner.querySelector('.song-list');
+  if (_qListEl) initReorderDrag(_qListEl, {
+    getList: () => S.queue,
+    getId: s => s.id,
+    scrollEl: inner,
+    onCommit: async (newIds) => {
+      const idMap = new Map(S.queue.map(s => [s.id, s]));
+      const curId = S.cur?.id;
+      S.queue = newIds.map(id => idMap.get(id)).filter(Boolean);
+      S.qi = curId ? Math.max(0, S.queue.findIndex(s => s.id === curId)) : 0;
+      // re-index data-qi on rows
+      _qListEl.querySelectorAll('.song-row').forEach((r, i) => { r.dataset.qi = i; });
+    }
+  });
 }
 
 // ── queue sidebar resize ──────────────────────────────────────────────────────
