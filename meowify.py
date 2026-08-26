@@ -9646,6 +9646,7 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
 @media (hover: hover) {.lyrics-resync button:hover{background:var(--color-surface-container-high)}}
 /* song list */
 .song-list{display:flex;flex-direction:column;gap:2px}
+.drag-spacer{flex-shrink:0;pointer-events:none;}
 .song-row{
   display:grid;
   grid-template-columns:var(--song-table-tpl);
