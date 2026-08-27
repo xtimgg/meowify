@@ -14602,11 +14602,14 @@ async function prevSong() {
 async function nextSong() {
   _enqueueCmd(async () => {
     try {
+      const _skippedSong = S.cur;
       engine._stopNxt();
       if (S.repeat === 'one') {
         if (S.cur) await playSong(S.cur);
         return;
       }
+      _fireSkip(_skippedSong, 'fwdbtn');
+      window._nextReasonStart = 'fwdbtn';
       if (S.shuffle && S.shuffleMode === 'chaos') {
         const next = S._chaosNext;
         if (!next) return;
