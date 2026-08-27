@@ -23920,7 +23920,7 @@ body.design-paper .ui-overlay{
 body.design-paper #ctx.ui-overlay,body.design-paper #dl-panel-float.ui-overlay{
   box-shadow:5px 5px 0 rgba(0,0,0,0.55),2px 2px 0 rgba(0,0,0,0.3)!important;
 }
-body.design-paper .mbox.ui-overlay,body.design-paper #modal.ui-overlay{
+body.design-paper .mbox.ui-overlay{
   box-shadow:7px 7px 0 rgba(0,0,0,0.6),3px 3px 0 rgba(0,0,0,0.3)!important;
 }
 /* ── ui-divider ────────────────────────────────────────────────────── */
