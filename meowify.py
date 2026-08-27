@@ -22722,7 +22722,7 @@ async function startSpotifyTransfer() {
   } else if (plSel) { targetPlId = plSel; }
 
   const statusEl = document.getElementById('sp-status');
-  document.querySelectorAll('#modal .btn, #modal-overlay .btn').forEach(b => { b.disabled = true; });
+  document.querySelectorAll('#modal .btn').forEach(b => { b.disabled = true; });
 
   let resolved = 0, failed = 0, localImported = 0;
   const allTracks = [], localImportedIds = [];
@@ -23324,29 +23324,7 @@ function initDrag(pid) {
 // ═══════════════════════════════════════════════
 // MODALS
 // ═══════════════════════════════════════════════
-function showModal(title, body, acts) {
-  let ov = document.getElementById('modal-overlay');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'modal-overlay';
-    ov.addEventListener('mousedown', e => { if (e.target === ov) closeModal(); });
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && ov.classList.contains('open')) closeModal();
-    });
-    (document.getElementById('app') || document.body).appendChild(ov);
-  }
-  ov.innerHTML = `<div class="mbox ui-overlay" onclick="event.stopPropagation()">
-    <div class="mtitle">${esc(title)}</div>
-    <div id="mbody">${body}</div>
-    <div class="macts" id="macts">${acts}</div>
-  </div>`;
-  requestAnimationFrame(() => ov.classList.add('open'));
-}
-
-function closeModal() {
-  const ov = document.getElementById('modal-overlay');
-  if (ov) ov.classList.remove('open');
-}
+function closeModal() { document.getElementById('modal').classList.remove('on'); }
 
 // ── cover lightbox ────────────────────────────────────────────────────────
 (function(){
@@ -23605,6 +23583,12 @@ function closeModal() {
 
   document.getElementById('cover-lightbox-bg').addEventListener('click', closeCoverLightbox);
 })();
+function showModal(title, body, acts) {
+  document.getElementById('mtitle').textContent = title;
+  document.getElementById('mbody').innerHTML = body;
+  document.getElementById('macts').innerHTML = acts;
+  document.getElementById('modal').classList.add('on');
+}
 
 function promptModal(title, label, value) {
   return new Promise(resolve => {
