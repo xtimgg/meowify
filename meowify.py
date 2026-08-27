@@ -14286,9 +14286,12 @@ function _prefetchMvForSongImpl(song) {
           shuffle: S.shuffle,
           shuffleMode: S.shuffle ? (S.shuffleMode || null) : null,
           offline: !navigator.onLine,
+          msPlayed: Math.round((song.duration || 0) * 1000) || null,
+          reasonStart: window._nextReasonStart || 'playbtn',
         }),
       }).catch(e => console.debug('[prefetch] played-tracking POST failed', song.id, e));
   }, 10000);
+  window._nextReasonStart = null;
 
     // incremental normGainMap update: only add missing entries
     if (!engine._normGainMap) engine._normGainMap = {};
