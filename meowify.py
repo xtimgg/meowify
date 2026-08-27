@@ -24527,7 +24527,8 @@ function statsRowDetailed(song, rankNum, metaRight) {
   const rankHtml = rankNum != null
     ? `<div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-outline);min-width:20px;text-align:right;flex-shrink:0">${rankNum}</div>`
     : '';
-  const detailFn = (!isGhost && sid) ? `showSongStatsDetail('${sid}',${JSON.stringify(song.title||'')},${JSON.stringify(song.artist||'')})` : '';
+  const _esc = s => (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const detailFn = (!isGhost && sid) ? `showSongStatsDetail('${sid}','${_esc(song.title||'')}','${_esc(song.artist||'')}')` : '';
   const ctxFn = isGhost ? '' : `oncontextmenu="songCtx(event,'${sid}','')"`;
   return `<div class="song-row ui-list-item${detailFn?' mu-ripple':''}" style="display:grid;align-items:center;contain:none;grid-template-columns:${rankNum!=null?'20px ':''}44px minmax(0,1fr) auto 28px;gap:10px;padding:6px 8px;${ghostStyle}"
     data-id="${sid}"${detailFn?` onclick="if(event.detail>1)return;${detailFn}"`:''} ${ctxFn}>
