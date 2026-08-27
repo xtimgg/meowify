@@ -24502,8 +24502,145 @@ function statsRow(song, rankNum, metaRight) {
       <div style="font:var(--type-body-small);font-variation-settings:var(--fv-body);color:var(--color-on-surface-variant);white-space:nowrap">${rightMeta}</div>
       <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-outline);white-space:nowrap">${fmtLastPlayed(song.last_played)}</div>
     </div>
-    ${isGhost ? '<div></div>' : `<button class="smenu-btn mu-ripple" onclick="event.stopPropagation();${_statsTab==='songs'?`showSongStatsDetail('${sid}',${JSON.stringify(song.title||'').replace(/"/g,'&quot;')},${JSON.stringify(song.artist||'').replace(/"/g,'&quot;')})`:``}songCtx(event,'${sid}','')">` + MEOW_ICONS.more + `</button>`}
+    ${isGhost ? '<div></div>' : `<button class="smenu-btn mu-ripple" onclick="event.stopPropagation();songCtx(event,'${sid}','')">` + MEOW_ICONS.more + `</button>`}
   </div>`
+}
+
+function statsRowDetailed(song, rankNum, metaRight) {
+  // like statsRow but clicking the row opens song stats detail instead of playing
+  const isGhost = !!song._ghost;
+  const sid = song.id;
+  const cov = isGhost
+    ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--color-outline);background:var(--color-surface-container-high)">♪</div>`
+    : (song.cover_path ? `<img src="/cover/${sid}" alt="" onerror="this.parentElement.innerHTML='♪'">` : '♪');
+  const rightMeta = metaRight || `${song.play_count||0} play${song.play_count===1?'':'s'}`;
+  const ghostStyle = isGhost ? 'opacity:0.55;' : '';
+  const rankHtml = rankNum != null
+    ? `<div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-outline);min-width:20px;text-align:right;flex-shrink:0">${rankNum}</div>`
+    : '';
+  const detailFn = (!isGhost && sid) ? `showSongStatsDetail('${sid}',${JSON.stringify(song.title||'')},${JSON.stringify(song.artist||'')})` : '';
+  const ctxFn = isGhost ? '' : `oncontextmenu="songCtx(event,'${sid}','')"`;
+  return `<div class="song-row ui-list-item${detailFn?' mu-ripple':''}" style="display:grid;align-items:center;contain:none;grid-template-columns:${rankNum!=null?'20px ':''}44px minmax(0,1fr) auto 28px;gap:10px;padding:6px 8px;${ghostStyle}"
+    data-id="${sid}"${detailFn?` onclick="if(event.detail>1)return;${detailFn}"`:''} ${ctxFn}>
+    ${rankHtml}
+    <div class="sthumb" style="width:40px;height:40px">${cov}</div>
+    <div class="sinfo">
+      <div class="stitle${isGhost?' ghost-title':''}">${esc(song.title||'untitled')}${isGhost?'<span style="margin-left:6px;font-size:10px;color:var(--color-outline);font-weight:400;vertical-align:middle">not downloaded</span>':''}</div>
+      <div class="sartist">${esc(song.artist||'')}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">
+      <div style="font:var(--type-body-small);font-variation-settings:var(--fv-body);color:var(--color-on-surface-variant);white-space:nowrap">${rightMeta}</div>
+      <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-outline);white-space:nowrap">${fmtLastPlayed(song.last_played)}</div>
+    </div>
+    ${isGhost ? '<div></div>' : `<button class="smenu-btn mu-ripple" onclick="event.stopPropagation();songCtx(event,'${sid}','')">` + MEOW_ICONS.more + `</button>`}
+  </div>`;
+}
+
+async function showSongStatsDetail(sid, title, artist) {
+  showModal(esc(title||'song stats'),
+    `<div style="display:flex;align-items:center;justify-content:center;padding:24px;color:var(--color-on-surface-variant)">loading…</div>`,
+    `<button class="btn btn-out mu-ripple" onclick="closeModal()">close</button>`
+  );
+  const data = await api('GET', `/api/songs/${sid}/stats-detail`).catch(()=>null);
+  if (!data || data.error) {
+    document.getElementById('mbody').innerHTML = '<div style="color:var(--color-error);padding:16px">could not load stats</div>';
+    return;
+  }
+  const daily = data.daily || [];
+  const monthly = data.monthly || [];
+
+  // line chart helper: sparkline SVG for plays over time
+  function _lineChart(points, w, h, color, fillColor) {
+    if (!points.length) return '';
+    const maxV = Math.max(...points.map(p=>p.y), 1);
+    const minV = 0;
+    const pad = 4;
+    const xs = points.map((_,i) => pad + (w - pad*2) * i / Math.max(points.length-1,1));
+    const ys = points.map(p => pad + (h - pad*2) * (1 - (p.y - minV)/(maxV - minV)));
+    const pts = xs.map((x,i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+    const fillPts = `${xs[0].toFixed(1)},${h} ${pts} ${xs[xs.length-1].toFixed(1)},${h}`;
+    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="overflow:visible">
+      <polygon points="${fillPts}" fill="${fillColor}" opacity="0.18"/>
+      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+      ${points.map((p,i)=>p.y>0?`<circle cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="2.5" fill="${color}" opacity="0.7"/>`:'').join('')}
+    </svg>`;
+  }
+
+  // build chart data — prefer monthly if we have > 30 days of daily data
+  const useMonthly = daily.length > 45 || monthly.length > 0;
+  const chartPoints = useMonthly
+    ? monthly.map(m => ({x: m.month, y: m.cnt, s: m.skips}))
+    : daily.map(d => ({x: d.day.slice(5), y: d.cnt, s: d.skips}));
+  const chartW = Math.max(320, Math.min(chartPoints.length * 22, 600));
+  const lineChart = _lineChart(chartPoints, chartW, 72, 'var(--color-primary)', 'var(--color-primary)');
+  const skipChart = chartPoints.some(p=>p.s>0)
+    ? _lineChart(chartPoints, chartW, 72, 'var(--color-error)', 'var(--color-error)')
+    : '';
+
+  // x-axis labels: show every Nth
+  const xLabels = (() => {
+    const n = chartPoints.length;
+    const step = Math.max(1, Math.floor(n/8));
+    return chartPoints.map((p,i) => i % step === 0
+      ? `<div style="position:absolute;left:${(4 + (chartW-8)*i/Math.max(n-1,1)).toFixed(0)}px;transform:translateX(-50%);font:var(--type-label-small);color:var(--color-outline);font-size:9px;white-space:nowrap">${p.x}</div>`
+      : '').join('');
+  })();
+
+  // peak day
+  const peakEntry = daily.reduce((best,d) => d.cnt > (best?.cnt||0) ? d : best, null);
+
+  // skip breakdown pills
+  const sbPills = data.skip_breakdown.map(r =>
+    `<span style="background:var(--color-surface-container-high);border-radius:20px;padding:3px 10px;font:var(--type-label-small);color:var(--color-on-surface-variant)">${esc(r.reason)} ×${r.cnt}</span>`
+  ).join('');
+
+  const statChip = (val, label, color) =>
+    `<div style="background:var(--color-surface-container-high);border-radius:var(--radius-md);padding:10px 14px;flex:1 1 100px;min-width:90px">
+      <div style="font:var(--type-title-medium);font-variation-settings:var(--fv-headline);color:${color||'var(--color-primary)'};">${val}</div>
+      <div style="font:var(--type-label-small);color:var(--color-on-surface-variant);margin-top:2px">${label}</div>
+    </div>`;
+
+  const coverHtml = `<img src="/cover/${sid}" alt="" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:var(--radius-md);object-fit:cover;flex-shrink:0">`;
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      ${coverHtml}
+      <div style="min-width:0">
+        <div style="font:var(--type-title-large);font-variation-settings:var(--fv-headline);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(title||'')}</div>
+        <div style="font:var(--type-body-small);color:var(--color-on-surface-variant);margin-top:2px">${esc(artist||'')}</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+      ${statChip(data.total_plays, 'total plays')}
+      ${statChip(data.skip_rate+'%', 'skip rate', data.skip_rate>50?'var(--color-error)':'var(--color-on-surface-variant)')}
+      ${data.max_streak > 1 ? statChip(data.max_streak+'d', 'longest streak') : ''}
+      ${data.peak_day_count > 1 ? statChip(data.peak_day_count+'×', 'peak day', 'var(--color-tertiary)') : ''}
+      ${data.avg_skip_sec ? statChip(data.avg_skip_sec+'s', 'avg skip at') : ''}
+      ${statChip(data.shuffle_pct+'%', 'on shuffle')}
+      ${data.offline_pct ? statChip(data.offline_pct+'%', 'offline') : ''}
+    </div>
+
+    ${chartPoints.length > 1 ? `
+    <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">
+      plays over time${skipChart?' <span style="color:var(--color-error);text-transform:none;letter-spacing:0;margin-left:8px;font-size:10px">─ skips</span>':''}</div>
+    <div style="overflow-x:auto;margin-bottom:20px">
+      <div style="position:relative;width:${chartW}px">
+        <div style="position:relative">${lineChart}${skipChart?`<div style="position:absolute;top:0;left:0">${skipChart}</div>`:''}</div>
+        <div style="position:relative;height:18px;margin-top:2px">${xLabels}</div>
+      </div>
+    </div>` : ''}
+
+    ${peakEntry ? `<div style="font:var(--type-label-small);color:var(--color-outline);margin-bottom:16px">peak: ${peakEntry.cnt} plays on ${peakEntry.day}</div>` : ''}
+
+    ${sbPills ? `<div style="margin-bottom:16px">
+      <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">skip reasons</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${sbPills}</div>
+    </div>` : ''}
+  `;
+
+  document.getElementById('mbody').innerHTML =
+    `<div style="max-height:70vh;overflow-y:auto;padding-right:4px">${html}</div>`;
 }
 
 function statsSection(title, songs, showRank) {
