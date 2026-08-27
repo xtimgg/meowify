@@ -24209,13 +24209,17 @@ async function importSpotifyHistory(input) {
           <span>${j.songs_touched}</span>
         </div>
         <div style="background:var(--color-surface-container-high);border-radius:var(--radius-md);padding:10px 14px;display:flex;justify-content:space-between">
-          <span style="color:var(--color-on-surface-variant)">skipped (&lt;10s)</span>
+          <span style="color:var(--color-on-surface-variant)">ignored (no signal)</span>
           <span>${j.skipped_short}</span>
         </div>
         <div style="background:var(--color-surface-container-high);border-radius:var(--radius-md);padding:10px 14px;display:flex;justify-content:space-between">
           <span style="color:var(--color-on-surface-variant)">duplicates skipped</span>
           <span>${j.skipped_dedup}</span>
         </div>
+        ${j.enriched ? `<div style="background:var(--color-surface-container-high);border-radius:var(--radius-md);padding:10px 14px;display:flex;justify-content:space-between">
+          <span style="color:var(--color-on-surface-variant)">events enriched</span>
+          <span>${j.enriched}</span>
+        </div>` : ''}
         ${j.errors ? `<div style="background:var(--color-surface-container-high);border-radius:var(--radius-md);padding:10px 14px;display:flex;justify-content:space-between">
           <span style="color:var(--color-error)">parse errors</span>
           <span style="color:var(--color-error)">${j.errors}</span>
