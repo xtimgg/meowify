@@ -23598,10 +23598,20 @@ function closeModal() {
   document.getElementById('cover-lightbox-bg').addEventListener('click', closeCoverLightbox);
 })();
 function showModal(title, body, acts) {
+  const ov = _getModalOverlay();
+  // move #modal box into the overlay and populate it
+  const box = document.getElementById('modal');
   document.getElementById('mtitle').textContent = title;
   document.getElementById('mbody').innerHTML = body;
   document.getElementById('macts').innerHTML = acts;
-  document.getElementById('modal').classList.add('on');
+  if (box.parentNode !== ov) ov.appendChild(box);
+  box.style.transform = 'scale(.97)';
+  box.style.transition = 'transform var(--dur-3,.2s) ease';
+  requestAnimationFrame(() => {
+    ov.style.opacity = '1';
+    ov.style.pointerEvents = 'auto';
+    requestAnimationFrame(() => { box.style.transform = 'scale(1)'; });
+  });
 }
 
 function promptModal(title, label, value) {
