@@ -10771,16 +10771,20 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
 /* modal */
 #modal{
   position:fixed;inset:0;z-index:900;
-  background:oklch(0% 0 0/.5);
+  background:color-mix(in oklch,var(--color-scrim,#000) 50%,transparent);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
   display:none;align-items:center;justify-content:center;
+  padding:5vh 6vw calc(88px + 5vh) 6vw;
   zoom:var(--ui-zoom,1);
 }
 #modal.on{display:flex}
 .mbox{
-  background:var(--color-surface-container);
+  background:var(--color-surface);
+  border:1px solid var(--color-outline-variant);
   border-radius:var(--radius-xl);padding:24px;
-  min-width:320px;max-width:460px;width:90%;
-  box-shadow:var(--elevation-5);
+  min-width:320px;max-width:560px;width:90%;
+  max-height:100%;overflow-y:auto;
+  box-shadow:0 24px 64px rgba(0,0,0,.45);
   animation:mu-dialog-spring var(--dur-6) var(--ease-spring-soft) both;
 }
 .mtitle{font:var(--type-headline-small);font-variation-settings:var(--fv-headline);margin-bottom:16px}
