@@ -5158,6 +5158,105 @@ def api_song_skipped(sid):
     return jsonify({'ok': True})
 
 
+@app.route('/api/songs/<sid>/stats-detail', methods=['GET'])
+def api_song_stats_detail(sid):
+    """per-song deep stats: timeline, skip rate, streaks, skip breakdown"""
+    with db() as c:
+        song = c.execute(
+            "SELECT title, artist, duration FROM songs WHERE id=?", (sid,)
+        ).fetchone()
+        if not song:
+            return jsonify({'error': 'not found'}), 404
+        ca = _canonical((song['artist'] or '').split(',')[0].strip())
+        ct = _canonical(song['title'] or '')
+        ss = c.execute(
+            "SELECT id, play_count FROM song_stats WHERE canonical_title=? AND canonical_artist=?",
+            (ct, ca)
+        ).fetchone()
+        if not ss:
+            return jsonify({'total_plays': 0, 'daily': [], 'monthly': [], 'skip_rate': 0,
+                            'max_streak': 0, 'peak_day_count': 0, 'skip_breakdown': [],
+                            'shuffle_pct': 0, 'offline_pct': 0, 'avg_skip_sec': None})
+        ssid = ss['id']
+        total_plays = ss['play_count']
+
+        daily = c.execute("""
+            SELECT strftime('%Y-%m-%d', datetime(timestamp,'unixepoch','localtime')) as day,
+                   COUNT(*) as cnt,
+                   COUNT(CASE WHEN skipped=1 THEN 1 END) as skips
+            FROM play_events WHERE song_stats_id=?
+            GROUP BY day ORDER BY day
+        """, (ssid,)).fetchall()
+
+        monthly = c.execute("""
+            SELECT strftime('%Y-%m', datetime(timestamp,'unixepoch','localtime')) as month,
+                   COUNT(*) as cnt,
+                   COUNT(CASE WHEN skipped=1 THEN 1 END) as skips
+            FROM play_events WHERE song_stats_id=?
+            GROUP BY month ORDER BY month
+        """, (ssid,)).fetchall()
+
+        skip_row = c.execute("""
+            SELECT COUNT(CASE WHEN skipped=1 THEN 1 END) as skips,
+                   COUNT(*) as total,
+                   AVG(CASE WHEN skipped=1 THEN CAST(ms_played AS REAL)/1000 END) as avg_skip_sec
+            FROM play_events WHERE song_stats_id=?
+        """, (ssid,)).fetchone()
+
+        skip_breakdown = c.execute("""
+            SELECT reason_end, COUNT(*) as cnt FROM play_events
+            WHERE song_stats_id=? AND skipped=1 AND reason_end IS NOT NULL
+            GROUP BY reason_end ORDER BY cnt DESC
+        """, (ssid,)).fetchall()
+
+        shuf_row2 = c.execute("""
+            SELECT COUNT(CASE WHEN shuffle=1 THEN 1 END) as shuf,
+                   COUNT(CASE WHEN shuffle=0 THEN 1 END) as direct
+            FROM play_events WHERE song_stats_id=?
+        """, (ssid,)).fetchone()
+
+        offline_row2 = c.execute("""
+            SELECT COUNT(CASE WHEN offline=1 THEN 1 END) as ofl FROM play_events WHERE song_stats_id=?
+        """, (ssid,)).fetchone()
+
+        # max repeat streak: consecutive days with at least 1 play
+        import datetime as _dt
+        day_strs = [r[0] for r in daily]
+        max_streak = 0
+        cur_run = 1
+        for i in range(1, len(day_strs)):
+            prev_d = _dt.date.fromisoformat(day_strs[i-1])
+            cur_d  = _dt.date.fromisoformat(day_strs[i])
+            if (cur_d - prev_d).days == 1:
+                cur_run += 1
+                max_streak = max(max_streak, cur_run)
+            else:
+                cur_run = 1
+        max_streak = max(max_streak, cur_run, 1 if day_strs else 0)
+
+        peak_day = max((r[1] for r in daily), default=0)
+        event_total = skip_row['total'] or 1
+        skip_rate = round(skip_row['skips'] / event_total * 100) if skip_row else 0
+        shuf_total = (shuf_row2['shuf'] or 0) + (shuf_row2['direct'] or 0) or 1
+        shuffle_pct = round((shuf_row2['shuf'] or 0) / shuf_total * 100) if shuf_row2 else 0
+        offline_pct = round((offline_row2['ofl'] or 0) / event_total * 100) if offline_row2 else 0
+
+    return jsonify({
+        'total_plays': total_plays,
+        'daily': [{'day': r[0], 'cnt': r[1], 'skips': r[2]} for r in daily],
+        'monthly': [{'month': r[0], 'cnt': r[1], 'skips': r[2]} for r in monthly],
+        'skip_rate': skip_rate,
+        'max_streak': max_streak,
+        'peak_day_count': peak_day,
+        'skip_breakdown': [{'reason': r[0], 'cnt': r[1]} for r in skip_breakdown],
+        'shuffle_pct': shuffle_pct,
+        'offline_pct': offline_pct,
+        'avg_skip_sec': round(skip_row['avg_skip_sec']) if (skip_row and skip_row['avg_skip_sec']) else None,
+        'event_total': event_total,
+        'skip_count': skip_row['skips'] if skip_row else 0,
+    })
+
+
 @app.route('/api/playlists', methods=['GET'])
 def api_pls():
     with db() as c: return jsonify([dict(r) for r in c.execute("SELECT * FROM playlists ORDER BY created_at DESC")])
