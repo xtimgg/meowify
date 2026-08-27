@@ -10776,6 +10776,21 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   zoom:var(--ui-zoom,1);
 }
 #modal.on{display:flex}
+#modal-overlay{
+  position:fixed;inset:0;z-index:80;
+  background:color-mix(in oklch,var(--color-scrim,#000) 55%,transparent);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+  padding:5vh 6vw calc(88px + 5vh) 6vw;
+  opacity:0;pointer-events:none;
+  transition:opacity var(--dur-3,.2s) ease;
+  zoom:var(--ui-zoom,1);
+}
+#modal-overlay.open{opacity:1;pointer-events:auto}
+#modal-overlay .mbox{
+  transform:scale(.97);transition:transform var(--dur-3,.2s) ease;
+}
+#modal-overlay.open .mbox{transform:scale(1)}
 .mbox{
   background:var(--color-surface-container);
   border-radius:var(--radius-xl);padding:24px;
