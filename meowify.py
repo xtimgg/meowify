@@ -10780,16 +10780,15 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   zoom:var(--ui-zoom,1);
 }
 #mu-overlay.open{opacity:1;pointer-events:auto}
-#modal{
+#modal{display:contents}
+.mbox{
   background:var(--color-surface-container);
   border-radius:var(--radius-xl);padding:24px;
   min-width:280px;max-width:500px;width:90%;
   max-height:100%;overflow-y:auto;
-  box-shadow:0 24px 64px rgba(0,0,0,.45);
-  transform:scale(.97);transition:transform var(--dur-3,.2s) ease;
+  box-shadow:var(--elevation-5);
+  animation:mu-dialog-spring var(--dur-6) var(--ease-spring-soft) both;
 }
-#mu-overlay.open #modal{transform:scale(1)}
-.mbox{display:contents}
 .mtitle{font:var(--type-headline-small);font-variation-settings:var(--fv-headline);margin-bottom:16px}
 .macts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 /* empty state */
