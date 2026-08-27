@@ -11569,11 +11569,13 @@ body.design-glassy .list-header.pinned::before{
   </div>
 </div>
 
-<div id="modal" onclick="closeModal()">
-  <div class="mbox ui-overlay" onclick="event.stopPropagation()">
-    <div class="mtitle" id="mtitle"></div>
-    <div id="mbody"></div>
-    <div class="macts" id="macts"></div>
+<div id="mu-overlay" onmousedown="if(event.target===this)closeModal()">
+  <div id="modal">
+    <div class="mbox">
+      <div class="mtitle" id="mtitle"></div>
+      <div id="mbody"></div>
+      <div class="macts" id="macts"></div>
+    </div>
   </div>
 </div>
 
