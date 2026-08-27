@@ -24748,6 +24748,123 @@ function _renderStatsContent() {
     return;
   }
 
+  if (_statsTab === 'insights') {
+    const totalEvents = data.platforms?.reduce((s,p)=>s+p.cnt,0) || 1;
+    const shuffled = data.shuffle_stats?.shuffle || 0;
+    const direct   = data.shuffle_stats?.intentional || 0;
+    const shufflePct = Math.round(shuffled / (shuffled + direct || 1) * 100);
+    const offlineCnt = data.offline_play_count || 0;
+    const offlinePct = Math.round(offlineCnt / totalEvents * 100);
+    const nightPct   = data.night_owl_pct || 0;
+    const nightCnt   = data.night_owl_plays || 0;
+    const skipByHour = data.skip_by_hour || [];
+    const skipHourVals = skipByHour.map(h => h.total > 0 ? Math.round(h.skips/h.total*100) : 0);
+    const HOUR_LABELS = ['12a','1','2','3','4','5','6','7','8','9','10','11','12p','1','2','3','4','5','6','7','8','9','10','11'];
+
+    const statTile = (val, label, sub, color) =>
+      `<div style="background:var(--color-surface-container);border-radius:var(--radius-lg);padding:14px 18px;flex:1 1 140px">
+        <div style="font:var(--type-headline-medium);font-variation-settings:var(--fv-headline);color:${color||'var(--color-primary)'};">${val}</div>
+        <div style="font:var(--type-body-small);color:var(--color-on-surface-variant);margin-top:3px">${label}</div>
+        ${sub?`<div style="font:var(--type-label-small);color:var(--color-outline);margin-top:2px">${sub}</div>`:''}
+      </div>`;
+
+    // shuffle mode breakdown donut-style bar
+    const smBreak = data.shuffle_mode_breakdown || [];
+    const smTotal = smBreak.reduce((s,r)=>s+r.cnt,0)||1;
+    const smColors = {random:'var(--color-primary)',chaos:'var(--color-tertiary)',flow:'var(--color-secondary)',block:'var(--color-error)'};
+    const smBar = smBreak.map(r=>`<div title="${r.mode}: ${r.cnt}" style="flex:${r.cnt};height:100%;background:${smColors[r.mode]||'var(--color-outline)'};min-width:4px"></div>`).join('');
+
+    // end reasons breakdown
+    const endR = data.end_reasons || [];
+    const endTotal = endR.reduce((s,r)=>s+r.cnt,0)||1;
+    const endColors = {trackdone:'var(--color-primary)',fwdbtn:'var(--color-secondary)',backbtn:'var(--color-tertiary)',endplay:'var(--color-secondary)'};
+    const endBars = endR.slice(0,6).map(r=>{
+      const pct = Math.round(r.cnt/endTotal*100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="font:var(--type-label-small);color:var(--color-on-surface-variant);min-width:80px">${esc(r.reason||'unknown')}</div>
+        <div style="flex:1;height:6px;border-radius:3px;background:var(--color-surface-container-high);overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${endColors[r.reason]||'var(--color-outline)'};border-radius:3px"></div>
+        </div>
+        <div style="font:var(--type-label-small);color:var(--color-outline);min-width:28px;text-align:right">${pct}%</div>
+      </div>`;
+    }).join('');
+
+    // most skipped songs
+    const topSkipped = (data.most_skipped||[]).slice(0,10);
+    const skippedRows = topSkipped.map((s,i)=>{
+      const cov = s.song_id
+        ? `<img src="/cover/${s.song_id}" alt="" onerror="this.parentElement.innerHTML='♪'" style="width:36px;height:36px;border-radius:var(--radius-sm);object-fit:cover;flex-shrink:0">`
+        : `<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--color-surface-container-high);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">♪</div>`;
+      const avgStr = s.avg_skip_sec ? `avg skip @${Math.round(s.avg_skip_sec)}s` : '';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0">
+        <div style="font:var(--type-label-small);color:var(--color-outline);min-width:18px;text-align:right">${i+1}</div>
+        ${cov}
+        <div style="flex:1;min-width:0">
+          <div style="font:var(--type-body-small);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.title)}</div>
+          <div style="font:var(--type-label-small);color:var(--color-on-surface-variant)">${esc(s.artist)}${avgStr?` · ${avgStr}`:''}</div>
+        </div>
+        <div style="font:var(--type-label-small);color:var(--color-error);flex-shrink:0">${s.skip_count}×</div>
+      </div>`;
+    }).join('');
+
+    // guilty pleasures
+    const gp = (data.guilty_pleasures||[]).slice(0,5);
+    const gpRows = gp.map(s=>{
+      const cov = s.song_id
+        ? `<img src="/cover/${s.song_id}" alt="" onerror="this.parentElement.innerHTML='♪'" style="width:32px;height:32px;border-radius:var(--radius-sm);object-fit:cover;flex-shrink:0">`
+        : `<div style="width:32px;height:32px;border-radius:var(--radius-sm);background:var(--color-surface-container-high);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">♪</div>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+        ${cov}
+        <div style="flex:1;min-width:0">
+          <div style="font:var(--type-body-small);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.title)}</div>
+          <div style="font:var(--type-label-small);color:var(--color-on-surface-variant)">${esc(s.artist)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">
+          <div style="font:var(--type-label-small);color:var(--color-primary)">${s.play_count}×</div>
+          <div style="font:var(--type-label-small);color:var(--color-error)">${s.skip_count} skips</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    area.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        ${statTile(shufflePct+'%', 'played on shuffle', `${shuffled.toLocaleString()} shuffled plays`)}
+        ${offlinePct ? statTile(offlinePct+'%', 'played offline', `${offlineCnt.toLocaleString()} offline plays`) : ''}
+        ${nightCnt ? statTile(nightPct+'%', 'night owl plays', `${nightCnt.toLocaleString()} plays 11pm–4am`, 'var(--color-tertiary)') : ''}
+      </div>
+
+      ${smBreak.length > 1 ? `<div style="background:var(--color-surface-container);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:12px">
+        ${sectionHdr('shuffle mode breakdown')}
+        <div style="display:flex;border-radius:4px;overflow:hidden;height:10px;gap:1px;margin-bottom:10px">${smBar}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${smBreak.map(r=>`<div style="display:flex;align-items:center;gap:5px">
+            <div style="width:8px;height:8px;border-radius:2px;background:${smColors[r.mode]||'var(--color-outline)'}"></div>
+            <div style="font:var(--type-label-small);color:var(--color-on-surface-variant)">${r.mode} · ${Math.round(r.cnt/smTotal*100)}%</div>
+          </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+      ${skipByHour.length ? card(`
+        ${sectionHdr('skip rate by hour')}
+        <div style="overflow-x:auto">${_barChart(skipHourVals, HOUR_LABELS, Math.max(...skipHourVals,1), 'var(--color-error)', 56)}</div>
+        <div style="font:var(--type-label-small);color:var(--color-outline);margin-top:4px">% of plays skipped per hour</div>
+      `) : ''}
+
+      ${endBars ? card(`${sectionHdr('how songs end')}${endBars}`) : ''}
+
+      ${skippedRows ? `<div style="background:var(--color-surface-container);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:12px">
+        ${sectionHdr('most skipped songs')}
+        ${skippedRows}
+      </div>` : ''}
+
+      ${gpRows ? `<div style="background:var(--color-surface-container);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:12px">
+        ${sectionHdr('guilty pleasures — played & skipped a lot')}
+        ${gpRows}
+      </div>` : ''}
+    `;
+    return;
+  }
+
   if (_statsTab === 'artists') {
     if (!window._artistSortMode) window._artistSortMode = 'plays';
     const mode = window._artistSortMode;
@@ -25085,6 +25202,7 @@ async function renderStats() {
         ${tabBtn('overview','overview','◈')}
         ${tabBtn('songs','songs','♪')}
         ${tabBtn('artists','artists','🎤')}
+        ${tabBtn('insights','insights','✦')}
       </div>
       <div id="stats-tab-area"></div>
     </div>`;
