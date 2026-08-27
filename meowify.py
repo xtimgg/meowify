@@ -22722,7 +22722,7 @@ async function startSpotifyTransfer() {
   } else if (plSel) { targetPlId = plSel; }
 
   const statusEl = document.getElementById('sp-status');
-  document.querySelectorAll('#modal .btn').forEach(b => { b.disabled = true; });
+  document.querySelectorAll('#modal .btn, #modal-overlay .btn').forEach(b => { b.disabled = true; });
 
   let resolved = 0, failed = 0, localImported = 0;
   const allTracks = [], localImportedIds = [];
