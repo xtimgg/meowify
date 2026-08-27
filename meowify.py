@@ -14364,6 +14364,24 @@ function applyNormToCurrentSong() {
   }
 }
 
+function _fireSkip(song, reasonEnd) {
+  if (!song) return;
+  const pos = engine.hasPaused ? (engine._pausedAt || 0) : engine.curTime;
+  const msPlayed = Math.round(pos * 1000) || null;
+  fetch('/api/songs/' + song.id + '/skipped', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      shuffle: S.shuffle,
+      shuffleMode: S.shuffle ? (S.shuffleMode || null) : null,
+      offline: !navigator.onLine,
+      msPlayed,
+      reasonEnd,
+      reasonStart: window._nextReasonStart || 'playbtn',
+    }),
+  }).catch(e => console.debug('[skip-tracking] failed', song.id, e));
+}
+
 function onSongEnd(scheduledNid) {
   _mlog(`onSongEnd enqueued nid=${scheduledNid} _playGen=${_playGen} S.cur=${S.cur?.id}`);
   _enqueueCmd(async () => {
