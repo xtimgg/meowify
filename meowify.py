@@ -14291,6 +14291,7 @@ function _prefetchMvForSongImpl(song) {
         }),
       }).catch(e => console.debug('[prefetch] played-tracking POST failed', song.id, e));
   }, 10000);
+  window._curReasonStart = window._nextReasonStart || 'playbtn';
   window._nextReasonStart = null;
   window._curReasonStart = window._nextReasonStart || 'playbtn';
 
@@ -14378,7 +14379,7 @@ function _fireSkip(song, reasonEnd) {
       offline: !navigator.onLine,
       msPlayed,
       reasonEnd,
-      reasonStart: window._nextReasonStart || 'playbtn',
+      reasonStart: window._curReasonStart || 'playbtn',
     }),
   }).catch(e => console.debug('[skip-tracking] failed', song.id, e));
 }
@@ -14569,6 +14570,8 @@ async function prevSong() {
         } else {
           // pop from history — current becomes _chaosNext so fwd works
           const prev = S._chaosHistory.pop();
+          _fireSkip(_skippedSong, 'backbtn');
+          window._nextReasonStart = 'backbtn';
           S._chaosNext = S.cur;
           engine._stopNxt();
           S.queue = [prev];
@@ -14610,7 +14613,7 @@ async function nextSong() {
       const _skippedSong = S.cur;
       engine._stopNxt();
       if (S.repeat === 'one') {
-        if (S.cur) await playSong(S.cur);
+        if (S.cur) { _fireSkip(_skippedSong, 'fwdbtn'); window._nextReasonStart = 'fwdbtn'; await playSong(S.cur); }
         return;
       }
       _fireSkip(_skippedSong, 'fwdbtn');
