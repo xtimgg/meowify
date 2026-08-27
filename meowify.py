@@ -14543,6 +14543,7 @@ async function togglePlay() {
 async function prevSong() {
   _enqueueCmd(async () => {
     try {
+      const _skippedSong = S.cur;
       const RESTART_THRESHOLD = 3;
       let curT = engine.hasPaused ? (engine._pausedAt || 0) : engine.curTime;
       if (curT === 0 && engine._stream && _wavyProgPct > 0) {
@@ -14589,6 +14590,8 @@ async function prevSong() {
         }
         saveSession();
       } else {
+        _fireSkip(_skippedSong, 'backbtn');
+        window._nextReasonStart = 'backbtn';
         engine._stopNxt();
         if (S.qi > 0) S.qi--;
         else S.qi = S.queue.length - 1;
