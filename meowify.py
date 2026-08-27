@@ -24884,7 +24884,6 @@ function _renderStatsContent() {
     _rebuildViewIdx();
 
     const _secHdr = t => `<div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">${t}</div>`;
-    const topTimeRows = topTime.slice(0, 20).map((s, i) => statsRow(s, i+1, fmtDuration(s.listen_seconds)));
     const topPlayedRows = top_played.slice(0, 50).map((s, i) => statsRowDetailed(s, i+1));
     const topTimeRowsDetailed = topTime.slice(0, 20).map((s, i) => statsRowDetailed(s, i+1, fmtDuration(s.listen_seconds)));
     area.innerHTML = `
