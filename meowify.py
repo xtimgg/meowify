@@ -23324,7 +23324,29 @@ function initDrag(pid) {
 // ═══════════════════════════════════════════════
 // MODALS
 // ═══════════════════════════════════════════════
-function closeModal() { document.getElementById('modal').classList.remove('on'); }
+function showModal(title, body, acts) {
+  let ov = document.getElementById('modal-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'modal-overlay';
+    ov.addEventListener('mousedown', e => { if (e.target === ov) closeModal(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && ov.classList.contains('open')) closeModal();
+    });
+    (document.getElementById('app') || document.body).appendChild(ov);
+  }
+  ov.innerHTML = `<div class="mbox ui-overlay" onclick="event.stopPropagation()">
+    <div class="mtitle">${esc(title)}</div>
+    <div id="mbody">${body}</div>
+    <div class="macts" id="macts">${acts}</div>
+  </div>`;
+  requestAnimationFrame(() => ov.classList.add('open'));
+}
+
+function closeModal() {
+  const ov = document.getElementById('modal-overlay');
+  if (ov) ov.classList.remove('open');
+}
 
 // ── cover lightbox ────────────────────────────────────────────────────────
 (function(){
