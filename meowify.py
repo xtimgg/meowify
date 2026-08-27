@@ -4368,6 +4368,23 @@ def api_import_spotify_history():
     errors = 0
     songs_touched = set()
 
+    # pre-load all existing spotify play_events into memory for O(1) dedup lookup.
+    # (song_stats_id, timestamp) -> id, ms_played — avoids one db round-trip per entry
+    with db() as c:
+        _existing_spotify = {
+            (r[0], r[1]): (r[2], r[3])
+            for r in c.execute(
+                "SELECT song_stats_id, timestamp, id, ms_played FROM play_events WHERE source='spotify'"
+            ).fetchall()
+        }
+    # fuzzy match cache: canonical (artist, title) -> song_stats row or False
+    _fuzzy_cache = {}
+    # pending inserts/updates collected across all files, flushed in one transaction
+    _pending_inserts = []   # (id, ssid, ts, ms_played, skipped, reason_end, reason_start, shuffle, offline)
+    _pending_backfills = [] # (ms_played, skipped, reason_end, reason_start, shuffle, offline, event_id)
+    _pending_new_stats = [] # (id, ca, ct, play_count, last_played, first_played)
+    _pending_stat_increments = {}  # ssid -> (delta_play_count, max_last_played)
+
     for f in files:
         try:
             raw = f.read().decode('utf-8', errors='replace')
@@ -4418,7 +4435,6 @@ def api_import_spotify_history():
                     if ts_raw:
                         try:
                             import datetime as _dt
-                            # handle both '2026-05-18T19:55:21Z' and '2025-11-01 13:31'
                             ts_clean = ts_raw.replace('Z', '+00:00').replace(' ', 'T')
                             if '+' not in ts_clean and 'T' in ts_clean:
                                 ts_clean += '+00:00'
@@ -4433,66 +4449,73 @@ def api_import_spotify_history():
                     if ts is None:
                         ts = int(time.time())
 
-                    # determine if this counts as a real play for play_count purposes
                     is_real_play = ms_played >= MIN_MS and not entry_skipped
 
-                    # check if song already in library via fuzzy match - if so, link stats
-                    with db() as c:
-                        existing_stat = _stats_fuzzy_match(c, artist, title)
-                        if existing_stat:
-                            ssid = existing_stat['id']
-                            existing_event = c.execute(
-                                "SELECT id, ms_played FROM play_events WHERE song_stats_id=? AND timestamp=? AND source='spotify'",
-                                (ssid, ts)
-                            ).fetchone()
-                            if existing_event:
-                                # row exists - backfill skip metadata if missing
-                                if existing_event['ms_played'] is None:
-                                    c.execute(
-                                        "UPDATE play_events SET ms_played=?, skipped=?, reason_end=?, reason_start=?, shuffle=?, offline=? WHERE id=?",
-                                        (ms_played, int(entry_skipped), reason_end, reason_start,
-                                         int(shuffle) if shuffle is not None else None,
-                                         int(offline) if offline is not None else None,
-                                         existing_event['id'])
-                                    )
-                                    enriched += 1
-                                else:
-                                    skipped_dedup += 1
-                                continue
-                            c.execute(
-                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                                (str(uuid.uuid4()), ssid, ts, 'spotify', ms_played, int(entry_skipped), reason_end, reason_start,
-                                 int(shuffle) if shuffle is not None else None,
-                                 int(offline) if offline is not None else None)
-                            )
-                            if is_real_play:
-                                c.execute(
-                                    "UPDATE song_stats SET play_count=play_count+1, last_played=MAX(COALESCE(last_played,0),?) WHERE id=?",
-                                    (ts, ssid)
+                    # fuzzy match via cache
+                    ca = _canonical(artist)
+                    ct = _canonical(title)
+                    cache_key = (ca, ct)
+                    if cache_key not in _fuzzy_cache:
+                        with db() as c:
+                            _fuzzy_cache[cache_key] = _stats_fuzzy_match(c, artist, title)
+                    existing_stat = _fuzzy_cache[cache_key]
+
+                    sh_int = int(shuffle) if shuffle is not None else None
+                    of_int = int(offline) if offline is not None else None
+
+                    if existing_stat:
+                        ssid = existing_stat['id']
+                        existing = _existing_spotify.get((ssid, ts))
+                        if existing is not None:
+                            event_id, existing_ms = existing
+                            if existing_ms is None:
+                                # backfill new fields onto old row
+                                _pending_backfills.append(
+                                    (ms_played, int(entry_skipped), reason_end, reason_start, sh_int, of_int, event_id)
                                 )
-                            songs_touched.add(ssid)
-                        else:
-                            # new entry - create song_stats row
-                            ca = _canonical(artist)
-                            ct = _canonical(title)
-                            if not ct:
-                                continue
-                            ssid = str(uuid.uuid4())
-                            c.execute(
-                                "INSERT INTO song_stats (id, canonical_artist, canonical_title, play_count, last_played, first_played) "
-                                "VALUES (?,?,?,?,?,?)",
-                                (ssid, ca, ct, 1 if is_real_play else 0, ts if is_real_play else None, ts if is_real_play else None)
-                            )
-                            c.execute(
-                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                                (str(uuid.uuid4()), ssid, ts, 'spotify', ms_played, int(entry_skipped), reason_end, reason_start,
-                                 int(shuffle) if shuffle is not None else None,
-                                 int(offline) if offline is not None else None)
-                            )
-                            songs_touched.add(ssid)
+                                # update in-memory cache so a second reimport of same file won't double-backfill
+                                _existing_spotify[(ssid, ts)] = (event_id, ms_played)
+                                enriched += 1
+                            else:
+                                skipped_dedup += 1
+                            continue
+                        # new event for known song
+                        eid = str(uuid.uuid4())
+                        _pending_inserts.append(
+                            (eid, ssid, ts, ms_played, int(entry_skipped), reason_end, reason_start, sh_int, of_int)
+                        )
+                        _existing_spotify[(ssid, ts)] = (eid, ms_played)
+                        if is_real_play:
+                            prev = _pending_stat_increments.get(ssid, (0, 0))
+                            _pending_stat_increments[ssid] = (prev[0] + 1, max(prev[1], ts))
+                        songs_touched.add(ssid)
+                    else:
+                        # brand new song - create stats row immediately so subsequent
+                        # entries for the same song hit the cache
+                        if not ct:
+                            continue
+                        ssid = str(uuid.uuid4())
+                        new_stat = {
+                            'id': ssid, 'canonical_artist': ca, 'canonical_title': ct,
+                            'play_count': 0, 'last_played': None, 'first_played': ts,
+                        }
+                        # make it dict-accessible like a real row so cache hits work
+                        class _Row(dict):
+                            def __getitem__(self, k): return super().__getitem__(k)
+                        stat_row = _Row(new_stat)
+                        _fuzzy_cache[cache_key] = stat_row
+                        _pending_new_stats.append(
+                            (ssid, ca, ct, 1 if is_real_play else 0,
+                             ts if is_real_play else None, ts)
+                        )
+                        eid = str(uuid.uuid4())
+                        _pending_inserts.append(
+                            (eid, ssid, ts, ms_played, int(entry_skipped), reason_end, reason_start, sh_int, of_int)
+                        )
+                        _existing_spotify[(ssid, ts)] = (eid, ms_played)
+                        songs_touched.add(ssid)
 
                     imported += 1
-
 
                 except Exception as _e:
                     _log_spotify.warning(f'spotify history entry err: {_e}')
@@ -4502,6 +4525,30 @@ def api_import_spotify_history():
             _log_spotify.warning(f'spotify history file err: {_fe}')
             errors += 1
             continue
+
+    # flush everything in two bulk transactions
+    if _pending_new_stats or _pending_inserts or _pending_backfills or _pending_stat_increments:
+        with db() as c:
+            if _pending_new_stats:
+                c.executemany(
+                    "INSERT OR IGNORE INTO song_stats (id, canonical_artist, canonical_title, play_count, last_played, first_played) VALUES (?,?,?,?,?,?)",
+                    _pending_new_stats
+                )
+            if _pending_inserts:
+                c.executemany(
+                    "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    [(r[0], r[1], r[2], 'spotify', r[3], r[4], r[5], r[6], r[7], r[8]) for r in _pending_inserts]
+                )
+            if _pending_backfills:
+                c.executemany(
+                    "UPDATE play_events SET ms_played=?, skipped=?, reason_end=?, reason_start=?, shuffle=?, offline=? WHERE id=?",
+                    _pending_backfills
+                )
+            for ssid, (delta, max_ts) in _pending_stat_increments.items():
+                c.execute(
+                    "UPDATE song_stats SET play_count=play_count+?, last_played=MAX(COALESCE(last_played,0),?) WHERE id=?",
+                    (delta, max_ts, ssid)
+                )
 
     # batch sync play counts back into library songs for all touched song_stats rows
     if songs_touched:
