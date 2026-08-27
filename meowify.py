@@ -261,7 +261,7 @@ def db():
     finally:
         conn.close()
 
-_SCHEMA_VERSION = 9
+_SCHEMA_VERSION = 10
 
 
 def _split_artists(artist_str):
@@ -753,6 +753,16 @@ def init_db():
                        featuring_artists, mv_video_id, mv_offset
                 FROM songs
             """)
+
+        if version < 10:
+            # v9 → v10: add skip metadata columns to play_events
+            _pe_cols = [r[1] for r in c.execute("PRAGMA table_info(play_events)").fetchall()]
+            if 'ms_played' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN ms_played INTEGER")
+            if 'skipped' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN skipped INTEGER")
+            if 'reason_end' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN reason_end TEXT")
 
         if version < 9:
             # v8 → v9: songs.album (text) and songs.album_id (the real link
@@ -4330,10 +4340,11 @@ def api_import_spotify_history():
     if not files:
         return jsonify({'error': 'no files'}), 400
 
-    MIN_MS = 10000  # 10s threshold consistent with meowify counting
+    MIN_MS = 10000  # 10s threshold for counting as a real play
     imported = 0
     skipped_short = 0
     skipped_dedup = 0
+    enriched = 0
     errors = 0
     songs_touched = set()
 
@@ -4354,7 +4365,12 @@ def api_import_spotify_history():
                 try:
                     # gracefully handle missing/null fields
                     ms_played = entry.get('ms_played') or 0
-                    if ms_played < MIN_MS:
+                    entry_skipped = bool(entry.get('skipped'))
+                    reason_end = entry.get('reason_end') or None
+
+                    # drop truly zero-duration ghost entries (no signal at all)
+                    # but keep explicit skips even under 10s - they carry skip data
+                    if ms_played < MIN_MS and not entry_skipped:
                         skipped_short += 1
                         continue
 
@@ -4394,26 +4410,38 @@ def api_import_spotify_history():
                     if ts is None:
                         ts = int(time.time())
 
+                    # determine if this counts as a real play for play_count purposes
+                    is_real_play = ms_played >= MIN_MS and not entry_skipped
+
                     # check if song already in library via fuzzy match - if so, link stats
                     with db() as c:
                         existing_stat = _stats_fuzzy_match(c, artist, title)
                         if existing_stat:
                             ssid = existing_stat['id']
-                            already = c.execute(
-                                "SELECT 1 FROM play_events WHERE song_stats_id=? AND timestamp=? AND source='spotify'",
+                            existing_event = c.execute(
+                                "SELECT id, ms_played FROM play_events WHERE song_stats_id=? AND timestamp=? AND source='spotify'",
                                 (ssid, ts)
                             ).fetchone()
-                            if already:
-                                skipped_dedup += 1
+                            if existing_event:
+                                # row exists - backfill skip metadata if missing
+                                if existing_event['ms_played'] is None:
+                                    c.execute(
+                                        "UPDATE play_events SET ms_played=?, skipped=?, reason_end=? WHERE id=?",
+                                        (ms_played, int(entry_skipped), reason_end, existing_event['id'])
+                                    )
+                                    enriched += 1
+                                else:
+                                    skipped_dedup += 1
                                 continue
                             c.execute(
-                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source) VALUES (?,?,?,?)",
-                                (str(uuid.uuid4()), ssid, ts, 'spotify')
+                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end) VALUES (?,?,?,?,?,?,?)",
+                                (str(uuid.uuid4()), ssid, ts, 'spotify', ms_played, int(entry_skipped), reason_end)
                             )
-                            c.execute(
-                                "UPDATE song_stats SET play_count=play_count+1, last_played=MAX(COALESCE(last_played,0),?) WHERE id=?",
-                                (ts, ssid)
-                            )
+                            if is_real_play:
+                                c.execute(
+                                    "UPDATE song_stats SET play_count=play_count+1, last_played=MAX(COALESCE(last_played,0),?) WHERE id=?",
+                                    (ts, ssid)
+                                )
                             songs_touched.add(ssid)
                         else:
                             # new entry - create song_stats row
@@ -4425,11 +4453,11 @@ def api_import_spotify_history():
                             c.execute(
                                 "INSERT INTO song_stats (id, canonical_artist, canonical_title, play_count, last_played, first_played) "
                                 "VALUES (?,?,?,?,?,?)",
-                                (ssid, ca, ct, 1, ts, ts)
+                                (ssid, ca, ct, 1 if is_real_play else 0, ts if is_real_play else None, ts if is_real_play else None)
                             )
                             c.execute(
-                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source) VALUES (?,?,?,?)",
-                                (str(uuid.uuid4()), ssid, ts, 'spotify')
+                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end) VALUES (?,?,?,?,?,?,?)",
+                                (str(uuid.uuid4()), ssid, ts, 'spotify', ms_played, int(entry_skipped), reason_end)
                             )
                             songs_touched.add(ssid)
 
@@ -4480,6 +4508,7 @@ def api_import_spotify_history():
         'imported': imported,
         'skipped_short': skipped_short,
         'skipped_dedup': skipped_dedup,
+        'enriched': enriched,
         'errors': errors,
         'songs_touched': len(songs_touched),
     })
