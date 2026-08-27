@@ -4721,30 +4721,20 @@ def api_stats():
             """).fetchall()
             most_skipped_raw = c.execute("""
                 SELECT ss.canonical_title, ss.canonical_artist,
-                       s.id as song_id, s.cover_path,
                        COUNT(*) as skip_count,
-                       ROUND(AVG(CAST(pe.ms_played AS REAL)/1000)) as avg_skip_sec,
-                       COUNT(*)*100/(SELECT COUNT(*)+1 FROM play_events pe2
-                                     WHERE pe2.song_stats_id=pe.song_stats_id) as skip_pct
+                       ROUND(AVG(CAST(pe.ms_played AS REAL)/1000)) as avg_skip_sec
                 FROM play_events pe
                 JOIN song_stats ss ON ss.id = pe.song_stats_id
-                LEFT JOIN songs s ON _canonical(COALESCE(s.title,''))=ss.canonical_title
-                    AND _canonical(COALESCE(s.artist,''))=ss.canonical_artist
-                    AND s.source != 'downloading'
                 WHERE pe.skipped=1
                 GROUP BY pe.song_stats_id HAVING skip_count >= 3
                 ORDER BY skip_count DESC LIMIT 20
             """).fetchall()
             # guilt factor: high play_count songs with also high skip_count
             guilty_raw = c.execute("""
-                SELECT ss.canonical_title, ss.canonical_artist,
-                       s.id as song_id, s.cover_path, ss.play_count,
+                SELECT ss.canonical_title, ss.canonical_artist, ss.play_count,
                        COUNT(CASE WHEN pe.skipped=1 THEN 1 END) as skip_count
                 FROM song_stats ss
                 JOIN play_events pe ON pe.song_stats_id = ss.id
-                LEFT JOIN songs s ON _canonical(COALESCE(s.title,''))=ss.canonical_title
-                    AND _canonical(COALESCE(s.artist,''))=ss.canonical_artist
-                    AND s.source != 'downloading'
                 GROUP BY ss.id HAVING ss.play_count >= 5 AND skip_count >= 2
                 ORDER BY (ss.play_count - skip_count) DESC LIMIT 10
             """).fetchall()
@@ -4766,6 +4756,13 @@ def api_stats():
                        COUNT(*) as total
                 FROM play_events GROUP BY hr ORDER BY hr
             """).fetchall()
+
+    # ── lib lookup by (canonical_title, canonical_artist) for stats joins ──
+    _lib_by_canonical = {}  # (ct, ca) -> (song_id,)
+    for r in lib_songs:
+        _lca = _canonical((r[2] or '').split(',')[0].strip())
+        _lct = _canonical(r[1] or '')
+        _lib_by_canonical[(_lct, _lca)] = (r[0],)
 
     # ── build word-index over lib canonical titles for fast ghost check ──
     # indexes each title word token + 3-char prefix → [(id, ca, ct)]
@@ -4944,17 +4941,20 @@ def api_stats():
         },
         'end_reasons': [{'reason': r[0], 'cnt': r[1]} for r in end_reasons_raw] if has_events else [],
         'skip_reasons': [{'reason': r[0], 'cnt': r[1]} for r in skip_reasons_raw] if has_events else [],
-        'most_skipped': [
-            {'title': r[0].title() if r[0] else '', 'artist': r[1].title() if r[1] else '',
-             'song_id': r[2], 'cover_path': r[3], 'skip_count': r[4],
-             'avg_skip_sec': r[5], 'skip_pct': r[6]}
-            for r in most_skipped_raw
-        ] if has_events else [],
-        'guilty_pleasures': [
-            {'title': r[0].title() if r[0] else '', 'artist': r[1].title() if r[1] else '',
-             'song_id': r[2], 'cover_path': r[3], 'play_count': r[4], 'skip_count': r[5]}
-            for r in guilty_raw
-        ] if has_events else [],
+        'most_skipped': [{
+            'title': r[0].title() if r[0] else '',
+            'artist': r[1].title() if r[1] else '',
+            'song_id': _lib_by_canonical.get((r[0], r[1]), (None,))[0],
+            'skip_count': r[2],
+            'avg_skip_sec': r[3],
+        } for r in most_skipped_raw] if has_events else [],
+        'guilty_pleasures': [{
+            'title': r[0].title() if r[0] else '',
+            'artist': r[1].title() if r[1] else '',
+            'song_id': _lib_by_canonical.get((r[0], r[1]), (None,))[0],
+            'play_count': r[2],
+            'skip_count': r[3],
+        } for r in guilty_raw] if has_events else [],
         'night_owl_plays': night_owl_cnt if has_events else 0,
         'night_owl_pct': round(night_owl_cnt / event_count * 100) if (has_events and event_count) else 0,
         'shuffle_mode_breakdown': [{'mode': r[0], 'cnt': r[1]} for r in shuffle_mode_raw] if has_events else [],
