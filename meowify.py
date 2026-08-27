@@ -4691,6 +4691,73 @@ def api_stats():
                 AND s.duration IS NOT NULL ORDER BY listen_seconds DESC LIMIT 20
             """).fetchall()
 
+            # ── new: real shuffle/offline/skip/reason stats ───────────────
+            shuf_row = c.execute("""
+                SELECT COUNT(CASE WHEN shuffle=1 THEN 1 END),
+                       COUNT(CASE WHEN shuffle=0 THEN 1 END)
+                FROM play_events
+            """).fetchone()
+            offline_row = c.execute("""
+                SELECT COUNT(CASE WHEN offline=1 THEN 1 END),
+                       COUNT(CASE WHEN offline=0 THEN 1 END)
+                FROM play_events
+            """).fetchone()
+            end_reasons_raw = c.execute("""
+                SELECT reason_end, COUNT(*) as cnt FROM play_events
+                WHERE reason_end IS NOT NULL GROUP BY reason_end ORDER BY cnt DESC
+            """).fetchall()
+            skip_reasons_raw = c.execute("""
+                SELECT reason_end, COUNT(*) as cnt FROM play_events
+                WHERE skipped=1 AND reason_end IS NOT NULL GROUP BY reason_end ORDER BY cnt DESC
+            """).fetchall()
+            most_skipped_raw = c.execute("""
+                SELECT ss.canonical_title, ss.canonical_artist,
+                       s.id as song_id, s.cover_path,
+                       COUNT(*) as skip_count,
+                       ROUND(AVG(CAST(pe.ms_played AS REAL)/1000)) as avg_skip_sec,
+                       COUNT(*)*100/(SELECT COUNT(*)+1 FROM play_events pe2
+                                     WHERE pe2.song_stats_id=pe.song_stats_id) as skip_pct
+                FROM play_events pe
+                JOIN song_stats ss ON ss.id = pe.song_stats_id
+                LEFT JOIN songs s ON _canonical(COALESCE(s.title,''))=ss.canonical_title
+                    AND _canonical(COALESCE(s.artist,''))=ss.canonical_artist
+                    AND s.source != 'downloading'
+                WHERE pe.skipped=1
+                GROUP BY pe.song_stats_id HAVING skip_count >= 3
+                ORDER BY skip_count DESC LIMIT 20
+            """).fetchall()
+            # guilt factor: high play_count songs with also high skip_count
+            guilty_raw = c.execute("""
+                SELECT ss.canonical_title, ss.canonical_artist,
+                       s.id as song_id, s.cover_path, ss.play_count,
+                       COUNT(CASE WHEN pe.skipped=1 THEN 1 END) as skip_count
+                FROM song_stats ss
+                JOIN play_events pe ON pe.song_stats_id = ss.id
+                LEFT JOIN songs s ON _canonical(COALESCE(s.title,''))=ss.canonical_title
+                    AND _canonical(COALESCE(s.artist,''))=ss.canonical_artist
+                    AND s.source != 'downloading'
+                GROUP BY ss.id HAVING ss.play_count >= 5 AND skip_count >= 2
+                ORDER BY (ss.play_count - skip_count) DESC LIMIT 10
+            """).fetchall()
+            # night owl: plays between 23:00 and 04:00
+            night_owl_cnt = c.execute("""
+                SELECT COUNT(*) FROM play_events
+                WHERE CAST(strftime('%H', datetime(timestamp,'unixepoch','localtime')) AS INTEGER)
+                      IN (23,0,1,2,3,4)
+            """).fetchone()[0]
+            # shuffle mode breakdown
+            shuffle_mode_raw = c.execute("""
+                SELECT shuffle_mode, COUNT(*) as cnt FROM play_events
+                WHERE shuffle_mode IS NOT NULL GROUP BY shuffle_mode ORDER BY cnt DESC
+            """).fetchall()
+            # skip rate per hour of day
+            skip_hour_raw = c.execute("""
+                SELECT CAST(strftime('%H', datetime(timestamp,'unixepoch','localtime')) AS INTEGER) as hr,
+                       COUNT(CASE WHEN skipped=1 THEN 1 END) as skips,
+                       COUNT(*) as total
+                FROM play_events GROUP BY hr ORDER BY hr
+            """).fetchall()
+
     # ── build word-index over lib canonical titles for fast ghost check ──
     # indexes each title word token + 3-char prefix → [(id, ca, ct)]
     # gives O(avg_tokens * avg_bucket_size) per lookup vs O(n_lib) linear scan
@@ -4858,10 +4925,32 @@ def api_stats():
         'first_play_ts': first_play_ts,
         'real_listen_seconds': real_seconds_simple,
         'platforms': [{'platform': r[0], 'cnt': r[1]} for r in source_raw],
-        'offline_online': {'offline': 0, 'online': event_count},
-        'shuffle_stats': {'shuffle': 0, 'intentional': event_count},
-        'end_reasons': [],
-        'most_skipped': [],
+        'offline_online': {
+            'offline': shuf_row[0] if shuf_row else 0,  # reuse var names correctly below
+            'online': offline_row[1] if offline_row else event_count,
+        } if has_events else {'offline': 0, 'online': event_count},
+        'shuffle_stats': {
+            'shuffle': shuf_row[0] if (has_events and shuf_row) else 0,
+            'intentional': shuf_row[1] if (has_events and shuf_row) else event_count,
+        },
+        'end_reasons': [{'reason': r[0], 'cnt': r[1]} for r in end_reasons_raw] if has_events else [],
+        'skip_reasons': [{'reason': r[0], 'cnt': r[1]} for r in skip_reasons_raw] if has_events else [],
+        'most_skipped': [
+            {'title': r[0].title() if r[0] else '', 'artist': r[1].title() if r[1] else '',
+             'song_id': r[2], 'cover_path': r[3], 'skip_count': r[4],
+             'avg_skip_sec': r[5], 'skip_pct': r[6]}
+            for r in most_skipped_raw
+        ] if has_events else [],
+        'guilty_pleasures': [
+            {'title': r[0].title() if r[0] else '', 'artist': r[1].title() if r[1] else '',
+             'song_id': r[2], 'cover_path': r[3], 'play_count': r[4], 'skip_count': r[5]}
+            for r in guilty_raw
+        ] if has_events else [],
+        'night_owl_plays': night_owl_cnt if has_events else 0,
+        'night_owl_pct': round(night_owl_cnt / event_count * 100) if (has_events and event_count) else 0,
+        'shuffle_mode_breakdown': [{'mode': r[0], 'cnt': r[1]} for r in shuffle_mode_raw] if has_events else [],
+        'skip_by_hour': [{'hr': r[0], 'skips': r[1], 'total': r[2]} for r in skip_hour_raw] if has_events else [],
+        'offline_play_count': offline_row[0] if (has_events and offline_row) else 0,
         'top_by_time': [dict(r) for r in top_time],
         'avg_plays_per_day': avg_plays_per_day,
         'avg_seconds_per_day': avg_seconds_per_day,
