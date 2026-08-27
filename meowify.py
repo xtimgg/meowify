@@ -23314,7 +23314,11 @@ function initDrag(pid) {
 // ═══════════════════════════════════════════════
 // MODALS
 // ═══════════════════════════════════════════════
-function closeModal() { document.getElementById('modal').classList.remove('on'); }
+function closeModal() {
+  const m = document.getElementById('modal');
+  m.classList.remove('on');
+  m.addEventListener('transitionend', () => { m.style.display = 'none'; }, {once: true});
+}
 
 // ── cover lightbox ────────────────────────────────────────────────────────
 (function(){
