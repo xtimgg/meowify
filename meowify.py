@@ -24876,9 +24876,17 @@ function _renderStatsContent() {
 
     const _secHdr = t => `<div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">${t}</div>`;
     const topTimeRows = topTime.slice(0, 20).map((s, i) => statsRow(s, i+1, fmtDuration(s.listen_seconds)));
+    const topPlayedRows = top_played.slice(0, 50).map((s, i) => statsRowDetailed(s, i+1));
+    const topTimeRowsDetailed = topTime.slice(0, 20).map((s, i) => statsRowDetailed(s, i+1, fmtDuration(s.listen_seconds)));
     area.innerHTML = `
-      ${statsSection('most played', top_played.slice(0, 50), true)}
-      ${topTime.length ? `<div style="margin-bottom:24px">${_secHdr('most time spent')}<div class="song-list">${topTimeRows.join('')}</div></div>` : ''}
+      <div style="margin-bottom:24px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:1px">most played</div>
+          <div style="font:var(--type-label-small);color:var(--color-outline)">tap a song for details</div>
+        </div>
+        <div class="song-list">${topPlayedRows.join('')}</div>
+      </div>
+      ${topTime.length ? `<div style="margin-bottom:24px">${_secHdr('most time spent')}<div class="song-list">${topTimeRowsDetailed.join('')}</div></div>` : ''}
       ${statsSection('recently played', recently_played.slice(0, 30))}
     `;
     updateHighlights();
