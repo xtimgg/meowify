@@ -23574,10 +23574,12 @@ function closeModal() { document.getElementById('modal').classList.remove('on');
   document.getElementById('cover-lightbox-bg').addEventListener('click', closeCoverLightbox);
 })();
 function showModal(title, body, acts) {
+  const m = document.getElementById('modal');
   document.getElementById('mtitle').textContent = title;
   document.getElementById('mbody').innerHTML = body;
   document.getElementById('macts').innerHTML = acts;
-  document.getElementById('modal').classList.add('on');
+  m.style.display = 'flex';
+  requestAnimationFrame(() => m.classList.add('on'));
 }
 
 function promptModal(title, label, value) {
