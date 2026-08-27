@@ -4495,15 +4495,10 @@ def api_import_spotify_history():
                         if not ct:
                             continue
                         ssid = str(uuid.uuid4())
-                        new_stat = {
+                        _fuzzy_cache[cache_key] = {
                             'id': ssid, 'canonical_artist': ca, 'canonical_title': ct,
                             'play_count': 0, 'last_played': None, 'first_played': ts,
                         }
-                        # make it dict-accessible like a real row so cache hits work
-                        class _Row(dict):
-                            def __getitem__(self, k): return super().__getitem__(k)
-                        stat_row = _Row(new_stat)
-                        _fuzzy_cache[cache_key] = stat_row
                         _pending_new_stats.append(
                             (ssid, ca, ct, 1 if is_real_play else 0,
                              ts if is_real_play else None, ts)
