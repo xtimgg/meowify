@@ -23309,36 +23309,7 @@ function initDrag(pid) {
 // ═══════════════════════════════════════════════
 // MODALS
 // ═══════════════════════════════════════════════
-function _getModalOverlay() {
-  let ov = document.getElementById('_modal-overlay');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = '_modal-overlay';
-    ov.style.cssText = [
-      'position:fixed','inset:0','z-index:80',
-      'background:color-mix(in oklch,var(--color-scrim,#000) 55%,transparent)',
-      'backdrop-filter:blur(6px)','-webkit-backdrop-filter:blur(6px)',
-      'display:flex','align-items:center','justify-content:center',
-      'padding:5vh 6vw calc(88px + 5vh) 6vw',
-      'opacity:0','pointer-events:none',
-      'transition:opacity var(--dur-3,.2s) ease',
-      'zoom:var(--ui-zoom,1)',
-    ].join(';');
-    ov.addEventListener('mousedown', e => { if (e.target === ov) closeModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.style.pointerEvents !== 'none') closeModal(); });
-    (document.getElementById('app') || document.body).appendChild(ov);
-  }
-  return ov;
-}
-
-function closeModal() {
-  const ov = document.getElementById('_modal-overlay');
-  if (!ov) return;
-  ov.style.opacity = '0';
-  ov.style.pointerEvents = 'none';
-  const box = ov.querySelector('.mbox');
-  if (box) box.style.transform = 'scale(.97)';
-}
+function closeModal() { document.getElementById('modal').classList.remove('on'); }
 
 // ── cover lightbox ────────────────────────────────────────────────────────
 (function(){
