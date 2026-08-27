@@ -14277,6 +14277,7 @@ function _prefetchMvForSongImpl(song) {
     };
 
     clearTimeout(window._playedTimer);
+  const _playedReasonStart = window._nextReasonStart || 'playbtn';
   window._playedTimer = setTimeout(() => {
     if (S.cur?.id === song.id && S.isPlaying)
       fetch('/api/songs/' + song.id + '/played', {
@@ -14287,13 +14288,12 @@ function _prefetchMvForSongImpl(song) {
           shuffleMode: S.shuffle ? (S.shuffleMode || null) : null,
           offline: !navigator.onLine,
           msPlayed: Math.round((song.duration || 0) * 1000) || null,
-          reasonStart: window._nextReasonStart || 'playbtn',
+          reasonStart: _playedReasonStart,
         }),
       }).catch(e => console.debug('[prefetch] played-tracking POST failed', song.id, e));
   }, 10000);
   window._curReasonStart = window._nextReasonStart || 'playbtn';
   window._nextReasonStart = null;
-  window._curReasonStart = window._nextReasonStart || 'playbtn';
 
     // incremental normGainMap update: only add missing entries
     if (!engine._normGainMap) engine._normGainMap = {};
