@@ -14391,6 +14391,7 @@ function onSongEnd(scheduledNid) {
 }
 
 async function _doOnSongEnd(scheduledNid) {
+  window._nextReasonStart = 'trackdone';
   if (S.repeat === 'one') {
     if (!S.cur) return;
     S.isPlaying = true;
