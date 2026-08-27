@@ -929,22 +929,22 @@ def _stats_upsert(artist, title, increment=True, timestamp=None, source='meowify
             existing = _stats_fuzzy_match(c, artist, title)
             if existing:
                 ssid = existing['id']
-                if increment:
-                    # check dedup: skip if this exact timestamp+source already recorded
-                    already = c.execute(
-                        "SELECT 1 FROM play_events WHERE song_stats_id=? AND timestamp=? AND source=?",
-                        (ssid, ts, source)
-                    ).fetchone()
-                    if not already:
-                        c.execute(
-                            "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline, shuffle_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                            (str(uuid.uuid4()), ssid, ts, source, ms_played,
-                             int(skipped) if skipped is not None else None,
-                             reason_end, reason_start,
-                             int(shuffle) if shuffle is not None else None,
-                             int(offline) if offline is not None else None,
-                             shuffle_mode)
-                        )
+                # check dedup: skip if this exact timestamp+source already recorded
+                already = c.execute(
+                    "SELECT 1 FROM play_events WHERE song_stats_id=? AND timestamp=? AND source=?",
+                    (ssid, ts, source)
+                ).fetchone()
+                if not already:
+                    c.execute(
+                        "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline, shuffle_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (str(uuid.uuid4()), ssid, ts, source, ms_played,
+                         int(skipped) if skipped is not None else None,
+                         reason_end, reason_start,
+                         int(shuffle) if shuffle is not None else None,
+                         int(offline) if offline is not None else None,
+                         shuffle_mode)
+                    )
+                    if increment:
                         c.execute(
                             "UPDATE song_stats SET play_count=play_count+1, last_played=MAX(COALESCE(last_played,0),?) WHERE id=?",
                             (ts, ssid)
@@ -956,16 +956,15 @@ def _stats_upsert(artist, title, increment=True, timestamp=None, source='meowify
                     "VALUES (?, ?, ?, ?, ?, ?)",
                     (ssid, ca, ct, 1 if increment else 0, ts if increment else None, ts)
                 )
-                if increment:
-                    c.execute(
-                        "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline, shuffle_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                        (str(uuid.uuid4()), ssid, ts, source, ms_played,
-                         int(skipped) if skipped is not None else None,
-                         reason_end, reason_start,
-                         int(shuffle) if shuffle is not None else None,
-                         int(offline) if offline is not None else None,
-                         shuffle_mode)
-                    )
+                c.execute(
+                    "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline, shuffle_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    (str(uuid.uuid4()), ssid, ts, source, ms_played,
+                     int(skipped) if skipped is not None else None,
+                     reason_end, reason_start,
+                     int(shuffle) if shuffle is not None else None,
+                     int(offline) if offline is not None else None,
+                     shuffle_mode)
+                )
 
 def _stats_get(artist, title):
     """return (play_count, last_played) from persistent stats, or (0, None)"""
