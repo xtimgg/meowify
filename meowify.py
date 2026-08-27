@@ -4926,9 +4926,9 @@ def api_stats():
         'real_listen_seconds': real_seconds_simple,
         'platforms': [{'platform': r[0], 'cnt': r[1]} for r in source_raw],
         'offline_online': {
-            'offline': shuf_row[0] if shuf_row else 0,  # reuse var names correctly below
-            'online': offline_row[1] if offline_row else event_count,
-        } if has_events else {'offline': 0, 'online': event_count},
+            'offline': offline_row[0] if (has_events and offline_row) else 0,
+            'online': offline_row[1] if (has_events and offline_row) else event_count,
+        },
         'shuffle_stats': {
             'shuffle': shuf_row[0] if (has_events and shuf_row) else 0,
             'intentional': shuf_row[1] if (has_events and shuf_row) else event_count,
