@@ -754,7 +754,8 @@ def init_db():
                 FROM songs
             """)
 
-find:
+        if version < 9:
+            # v8 → v9: songs.album (text) and songs.album_id (the real link
             # to albums) are two independent columns nothing forces to
             # agree - multiple write sites (_relink_album_tracks linking a
             # song, _merge_duplicate_albums_impl repointing survivors, tag
@@ -816,6 +817,16 @@ find:
                        featuring_artists, mv_video_id, mv_offset
                 FROM songs
             """)
+
+        if version < 10:
+            # v9 → v10: add skip metadata columns to play_events
+            _pe_cols = [r[1] for r in c.execute("PRAGMA table_info(play_events)").fetchall()]
+            if 'ms_played' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN ms_played INTEGER")
+            if 'skipped' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN skipped INTEGER")
+            if 'reason_end' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN reason_end TEXT")
 
         c.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
 
