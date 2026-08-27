@@ -14292,6 +14292,7 @@ function _prefetchMvForSongImpl(song) {
       }).catch(e => console.debug('[prefetch] played-tracking POST failed', song.id, e));
   }, 10000);
   window._nextReasonStart = null;
+  window._curReasonStart = window._nextReasonStart || 'playbtn';
 
     // incremental normGainMap update: only add missing entries
     if (!engine._normGainMap) engine._normGainMap = {};
