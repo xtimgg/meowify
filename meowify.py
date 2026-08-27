@@ -25329,7 +25329,6 @@ let _statsDataCache = null;
 async function renderStats() {
   const vc = document.getElementById('vc');
   const gen = ++_statsRenderGeneration;
-  console.log('[stats] renderStats called');
   _statsData = null;
 
   // skeleton: same structure as actual cards - 8 fixed-size pill placeholders
