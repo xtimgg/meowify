@@ -10769,7 +10769,13 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
 .cx-sep{height:1px;background:var(--color-outline-variant);margin:3px 0}
 .cx-header{padding:6px 14px 2px;font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:.08em;pointer-events:none;user-select:none}
 /* modal */
-#modal{display:contents}
+#modal{
+  position:fixed;inset:0;z-index:900;
+  background:oklch(0% 0 0/.5);
+  display:none;align-items:center;justify-content:center;
+  zoom:var(--ui-zoom,1);
+}
+#modal.on{display:flex}
 .mbox{
   background:var(--color-surface-container);
   border-radius:var(--radius-xl);padding:24px;
