@@ -23319,9 +23319,7 @@ function initDrag(pid) {
 // MODALS
 // ═══════════════════════════════════════════════
 function closeModal() {
-  const m = document.getElementById('modal');
-  m.classList.remove('on');
-  m.addEventListener('transitionend', () => { m.style.display = 'none'; }, {once: true});
+  document.getElementById('mu-overlay').classList.remove('open');
 }
 
 // ── cover lightbox ────────────────────────────────────────────────────────
