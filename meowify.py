@@ -5028,6 +5028,8 @@ def api_song_played(sid):
     shuffle = body.get('shuffle')
     shuffle_mode = body.get('shuffleMode') or None
     offline = body.get('offline')
+    ms_played = body.get('msPlayed') or None
+    reason_start = body.get('reasonStart') or None
     with db() as c:
         c.execute("UPDATE songs SET play_count=COALESCE(play_count,0)+1, last_played=? WHERE id=?", (now, sid))
         row = c.execute("SELECT title, artist FROM songs WHERE id=?", (sid,)).fetchone()
@@ -5036,7 +5038,33 @@ def api_song_played(sid):
         threading.Thread(
             target=_stats_upsert,
             args=(_stats_artist, row['title'] or ''),
-            kwargs=dict(shuffle=shuffle, shuffle_mode=shuffle_mode, offline=offline),
+            kwargs=dict(shuffle=shuffle, shuffle_mode=shuffle_mode, offline=offline,
+                        ms_played=ms_played, skipped=False, reason_end='trackdone',
+                        reason_start=reason_start),
+            daemon=True
+        ).start()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/songs/<sid>/skipped', methods=['POST'])
+def api_song_skipped(sid):
+    body = request.get_json(silent=True) or {}
+    shuffle = body.get('shuffle')
+    shuffle_mode = body.get('shuffleMode') or None
+    offline = body.get('offline')
+    ms_played = body.get('msPlayed') or None
+    reason_end = body.get('reasonEnd') or 'fwdbtn'
+    reason_start = body.get('reasonStart') or None
+    with db() as c:
+        row = c.execute("SELECT title, artist FROM songs WHERE id=?", (sid,)).fetchone()
+    if row:
+        _stats_artist = (row['artist'] or '').split(',')[0].strip()
+        threading.Thread(
+            target=_stats_upsert,
+            args=(_stats_artist, row['title'] or ''),
+            kwargs=dict(increment=False, shuffle=shuffle, shuffle_mode=shuffle_mode,
+                        offline=offline, ms_played=ms_played, skipped=True,
+                        reason_end=reason_end, reason_start=reason_start),
             daemon=True
         ).start()
     return jsonify({'ok': True})
