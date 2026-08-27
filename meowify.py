@@ -4634,6 +4634,15 @@ def api_stats():
         real_seconds_simple = 0
         source_raw = []
         top_time = []
+        shuf_row = None
+        offline_row = None
+        end_reasons_raw = []
+        skip_reasons_raw = []
+        most_skipped_raw = []
+        guilty_raw = []
+        night_owl_cnt = 0
+        shuffle_mode_raw = []
+        skip_hour_raw = []
 
         if has_events:
             for r in c.execute("""
