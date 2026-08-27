@@ -23582,12 +23582,10 @@ function closeModal() {
   document.getElementById('cover-lightbox-bg').addEventListener('click', closeCoverLightbox);
 })();
 function showModal(title, body, acts) {
-  const m = document.getElementById('modal');
   document.getElementById('mtitle').textContent = title;
   document.getElementById('mbody').innerHTML = body;
   document.getElementById('macts').innerHTML = acts;
-  m.style.display = 'flex';
-  requestAnimationFrame(() => m.classList.add('on'));
+  requestAnimationFrame(() => document.getElementById('mu-overlay').classList.add('open'));
 }
 
 function promptModal(title, label, value) {
