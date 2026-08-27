@@ -819,7 +819,7 @@ def init_db():
             """)
 
         if version < 10:
-            # v9 → v10: add skip metadata columns to play_events
+            # v9 → v10: add skip + playback context columns to play_events
             _pe_cols = [r[1] for r in c.execute("PRAGMA table_info(play_events)").fetchall()]
             if 'ms_played' not in _pe_cols:
                 c.execute("ALTER TABLE play_events ADD COLUMN ms_played INTEGER")
@@ -827,6 +827,14 @@ def init_db():
                 c.execute("ALTER TABLE play_events ADD COLUMN skipped INTEGER")
             if 'reason_end' not in _pe_cols:
                 c.execute("ALTER TABLE play_events ADD COLUMN reason_end TEXT")
+            if 'reason_start' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN reason_start TEXT")
+            if 'shuffle' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN shuffle INTEGER")
+            if 'offline' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN offline INTEGER")
+            if 'shuffle_mode' not in _pe_cols:
+                c.execute("ALTER TABLE play_events ADD COLUMN shuffle_mode TEXT")
 
         c.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
 
@@ -903,7 +911,9 @@ def _stats_fuzzy_match(c, artist, title, threshold=0.80):
             best = row
     return best if best_score >= threshold else None
 
-def _stats_upsert(artist, title, increment=True, timestamp=None, source='meowify'):
+def _stats_upsert(artist, title, increment=True, timestamp=None, source='meowify',
+                  shuffle=None, shuffle_mode=None, offline=None,
+                  ms_played=None, skipped=None, reason_end=None, reason_start=None):
     """increment play count in song_stats, fuzzy-matching existing rows.
     if increment=True, also records a play_event with the given timestamp (defaults to now).
     source: 'meowify' or 'spotify'
@@ -927,8 +937,13 @@ def _stats_upsert(artist, title, increment=True, timestamp=None, source='meowify
                     ).fetchone()
                     if not already:
                         c.execute(
-                            "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source) VALUES (?,?,?,?)",
-                            (str(uuid.uuid4()), ssid, ts, source)
+                            "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline, shuffle_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                            (str(uuid.uuid4()), ssid, ts, source, ms_played,
+                             int(skipped) if skipped is not None else None,
+                             reason_end, reason_start,
+                             int(shuffle) if shuffle is not None else None,
+                             int(offline) if offline is not None else None,
+                             shuffle_mode)
                         )
                         c.execute(
                             "UPDATE song_stats SET play_count=play_count+1, last_played=MAX(COALESCE(last_played,0),?) WHERE id=?",
@@ -943,8 +958,13 @@ def _stats_upsert(artist, title, increment=True, timestamp=None, source='meowify
                 )
                 if increment:
                     c.execute(
-                        "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source) VALUES (?,?,?,?)",
-                        (str(uuid.uuid4()), ssid, ts, source)
+                        "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline, shuffle_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (str(uuid.uuid4()), ssid, ts, source, ms_played,
+                         int(skipped) if skipped is not None else None,
+                         reason_end, reason_start,
+                         int(shuffle) if shuffle is not None else None,
+                         int(offline) if offline is not None else None,
+                         shuffle_mode)
                     )
 
 def _stats_get(artist, title):
@@ -4367,6 +4387,9 @@ def api_import_spotify_history():
                     ms_played = entry.get('ms_played') or 0
                     entry_skipped = bool(entry.get('skipped'))
                     reason_end = entry.get('reason_end') or None
+                    reason_start = entry.get('reason_start') or None
+                    shuffle = entry.get('shuffle')
+                    offline = entry.get('offline')
 
                     # drop truly zero-duration ghost entries (no signal at all)
                     # but keep explicit skips even under 10s - they carry skip data
@@ -4426,16 +4449,21 @@ def api_import_spotify_history():
                                 # row exists - backfill skip metadata if missing
                                 if existing_event['ms_played'] is None:
                                     c.execute(
-                                        "UPDATE play_events SET ms_played=?, skipped=?, reason_end=? WHERE id=?",
-                                        (ms_played, int(entry_skipped), reason_end, existing_event['id'])
+                                        "UPDATE play_events SET ms_played=?, skipped=?, reason_end=?, reason_start=?, shuffle=?, offline=? WHERE id=?",
+                                        (ms_played, int(entry_skipped), reason_end, reason_start,
+                                         int(shuffle) if shuffle is not None else None,
+                                         int(offline) if offline is not None else None,
+                                         existing_event['id'])
                                     )
                                     enriched += 1
                                 else:
                                     skipped_dedup += 1
                                 continue
                             c.execute(
-                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end) VALUES (?,?,?,?,?,?,?)",
-                                (str(uuid.uuid4()), ssid, ts, 'spotify', ms_played, int(entry_skipped), reason_end)
+                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                                (str(uuid.uuid4()), ssid, ts, 'spotify', ms_played, int(entry_skipped), reason_end, reason_start,
+                                 int(shuffle) if shuffle is not None else None,
+                                 int(offline) if offline is not None else None)
                             )
                             if is_real_play:
                                 c.execute(
@@ -4456,8 +4484,10 @@ def api_import_spotify_history():
                                 (ssid, ca, ct, 1 if is_real_play else 0, ts if is_real_play else None, ts if is_real_play else None)
                             )
                             c.execute(
-                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end) VALUES (?,?,?,?,?,?,?)",
-                                (str(uuid.uuid4()), ssid, ts, 'spotify', ms_played, int(entry_skipped), reason_end)
+                                "INSERT OR IGNORE INTO play_events (id, song_stats_id, timestamp, source, ms_played, skipped, reason_end, reason_start, shuffle, offline) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                                (str(uuid.uuid4()), ssid, ts, 'spotify', ms_played, int(entry_skipped), reason_end, reason_start,
+                                 int(shuffle) if shuffle is not None else None,
+                                 int(offline) if offline is not None else None)
                             )
                             songs_touched.add(ssid)
 
@@ -4952,15 +4982,21 @@ def api_rescan_song(sid):
 @app.route('/api/songs/<sid>/played', methods=['POST'])
 def api_song_played(sid):
     now = int(time.time())
+    body = request.get_json(silent=True) or {}
+    shuffle = body.get('shuffle')
+    shuffle_mode = body.get('shuffleMode') or None
+    offline = body.get('offline')
     with db() as c:
         c.execute("UPDATE songs SET play_count=COALESCE(play_count,0)+1, last_played=? WHERE id=?", (now, sid))
         row = c.execute("SELECT title, artist FROM songs WHERE id=?", (sid,)).fetchone()
     if row:
-        # use primary artist only (first comma-segment) for stats key so that
-        # featuring-artist string differences don't split play counts across
-        # multiple song_stats rows for the same song
         _stats_artist = (row['artist'] or '').split(',')[0].strip()
-        threading.Thread(target=_stats_upsert, args=(_stats_artist, row['title'] or ''), daemon=True).start()
+        threading.Thread(
+            target=_stats_upsert,
+            args=(_stats_artist, row['title'] or ''),
+            kwargs=dict(shuffle=shuffle, shuffle_mode=shuffle_mode, offline=offline),
+            daemon=True
+        ).start()
     return jsonify({'ok': True})
 
 
@@ -14173,7 +14209,15 @@ function _prefetchMvForSongImpl(song) {
     clearTimeout(window._playedTimer);
   window._playedTimer = setTimeout(() => {
     if (S.cur?.id === song.id && S.isPlaying)
-      fetch('/api/songs/' + song.id + '/played', {method:'POST'}).catch(e => console.debug('[prefetch] played-tracking POST failed', song.id, e));
+      fetch('/api/songs/' + song.id + '/played', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          shuffle: S.shuffle,
+          shuffleMode: S.shuffle ? (S.shuffleMode || null) : null,
+          offline: !navigator.onLine,
+        }),
+      }).catch(e => console.debug('[prefetch] played-tracking POST failed', song.id, e));
   }, 10000);
 
     // incremental normGainMap update: only add missing entries
