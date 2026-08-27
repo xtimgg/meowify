@@ -24502,8 +24502,8 @@ function statsRow(song, rankNum, metaRight) {
       <div style="font:var(--type-body-small);font-variation-settings:var(--fv-body);color:var(--color-on-surface-variant);white-space:nowrap">${rightMeta}</div>
       <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-outline);white-space:nowrap">${fmtLastPlayed(song.last_played)}</div>
     </div>
-    ${isGhost ? '<div></div>' : `<button class="smenu-btn mu-ripple" onclick="event.stopPropagation();songCtx(event,'${sid}','')">${MEOW_ICONS.more}</button>`}
-  </div>`;
+    ${isGhost ? '<div></div>' : `<button class="smenu-btn mu-ripple" onclick="event.stopPropagation();${_statsTab==='songs'?`showSongStatsDetail('${sid}',${JSON.stringify(song.title||'').replace(/"/g,'&quot;')},${JSON.stringify(song.artist||'').replace(/"/g,'&quot;')})`:``}songCtx(event,'${sid}','')">` + MEOW_ICONS.more + `</button>`}
+  </div>`
 }
 
 function statsSection(title, songs, showRank) {
