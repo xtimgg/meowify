@@ -23368,8 +23368,8 @@ function _syncModalDividers() {
   if (!b) return;
   const atTop = b.scrollTop < 2;
   const atBot = b.scrollTop + b.clientHeight >= b.scrollHeight - 2;
-  document.querySelector('.mtitle')?.classList.toggle('mbody-scrolled', !atTop);
-  document.querySelector('.macts')?.classList.toggle('mbody-more', !atBot);
+  b.classList.toggle('mbody-scrolled', !atTop);
+  b.classList.toggle('mbody-more', !atBot);
 }
 function showModal(title, body, acts) {
   let ov = document.getElementById('modal-overlay');
