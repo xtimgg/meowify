@@ -21911,6 +21911,7 @@ async function pollDl(did, batchId) {
     await new Promise(r => setTimeout(r, 1200));
     const s = await api('GET', '/api/download/' + did);
     if (!s || s.error) {
+      alert('early exit — s=' + JSON.stringify(s));
       if (_dlPanelItems[did]) { _dlPanelItems[did].status = 'error'; _dlPanelItems[did].error = s?.error || 'error'; _dlPanelItems[did].progress = 0; }
       _updateDlPanelBadge();
       if (_libAdded && s?.song_id) { _activeDownloadWipes.delete(s.song_id); await loadData(); rerenderCurrentView(); }
