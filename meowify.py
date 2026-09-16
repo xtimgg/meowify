@@ -26077,6 +26077,10 @@ function renderSettings() {
       `) : ''}
     </div>`;
   requestAnimationFrame(() => { const w = document.getElementById('eq-sliders-wrap'); if (w && window.MU) MU.init(w); });
+  if (_existingSearchBar) {
+    const panel = _settingsTarget.querySelector('.set-panel');
+    if (panel) panel.insertBefore(_existingSearchBar, panel.firstChild);
+  }
   if (_pcPopup && window.MU) MU.init(_settingsTarget);
 }
 
