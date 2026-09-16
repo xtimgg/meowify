@@ -3864,8 +3864,8 @@ def _run_dl(did, q, fmt, quality, genius_track_id=None, video_id=None, is_batch=
     except Exception as e:
         traceback.print_exc()
         _dl(did, status='error', error=str(e)[:200],
-            _error_cmd=' '.join(_last_ydl_cmd) if '_last_ydl_cmd' in dir() else '',
-            _error_output=_last_ydl_out[-8000:] if '_last_ydl_out' in dir() else '')
+            _error_cmd=' '.join(_last_ydl_cmd) if _last_ydl_cmd else f'(error before yt-dlp ran: {type(e).__name__})',
+            _error_output=(_last_ydl_out[-8000:] if _last_ydl_out else traceback.format_exc()))
         if 'sid' in locals():
             try:
                 _delete_placeholder(sid)
