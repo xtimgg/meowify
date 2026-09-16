@@ -25795,10 +25795,10 @@ function renderSettings() {
             </div>
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font:var(--type-label-small);color:var(--color-on-surface-variant);min-width:24px;text-align:right">sat</span>
-              <input type="range" min="0" max="100" value="${CFG.theme_sat ?? 50}" class="slider" style="width:120px;"
-                class="slider" oninput="CFG.theme_sat=parseInt(this.value);document.getElementById('sat-lbl').textContent=this.value;applyTheme(CFG.theme_hue??145,CFG.theme_sat,CFG.theme_bri??1.0,true)"
+              <input type="range" min="0" max="200" value="${CFG.theme_sat ?? 50}" class="slider" style="width:120px;"
+                class="slider" oninput="CFG.theme_sat=parseInt(this.value);document.getElementById('sat-lbl').textContent=this.value+'%';applyTheme(CFG.theme_hue??145,CFG.theme_sat,CFG.theme_bri??1.0,true)"
                 onpointerup="saveSetting('theme_sat',CFG.theme_sat)">
-              <span id="sat-lbl" style="font:var(--type-label-small);color:var(--color-on-surface-variant);min-width:32px">${CFG.theme_sat ?? 50}</span>
+              <span id="sat-lbl" style="font:var(--type-label-small);color:var(--color-on-surface-variant);min-width:32px">${CFG.theme_sat ?? 50}%</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font:var(--type-label-small);color:var(--color-on-surface-variant);min-width:24px;text-align:right">bri</span>
