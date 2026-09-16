@@ -21960,6 +21960,7 @@ async function pollDl(did, batchId) {
       return;
     }
     if (s.status === 'error') {
+      console.log('[dl error debug]', did, JSON.stringify({cmd: s._error_cmd, out: (s._error_output||'').slice(0,200)}));
       const item = _dlPanelItems[did];
       if (item && s._error_cmd    != null) item._error_cmd    = s._error_cmd;
       if (item && s._error_output != null) item._error_output = s._error_output;
