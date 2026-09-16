@@ -10809,8 +10809,11 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   min-width:320px;max-width:460px;width:90%;
   box-shadow:var(--elevation-5);
   animation:mu-dialog-spring var(--dur-6) var(--ease-spring-soft) both;
+  max-height:calc(100vh - 88px - 10vh);
+  display:flex;flex-direction:column;
 }
-.mtitle{font:var(--type-headline-small);font-variation-settings:var(--fv-headline);margin-bottom:16px}
+#mbody{overflow-y:auto;flex:1;min-height:0}
+.mtitle{font:var(--type-headline-small)
 .macts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 /* empty state */
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:64px 0;color:var(--color-on-surface-variant)}
