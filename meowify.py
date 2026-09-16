@@ -10653,7 +10653,7 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
 @media (max-width:767px){#set-pc-overlay{display:none!important}}
 .set-pc-item.set-pc-search-item{color:var(--color-on-surface-variant)}
 .set-pc-sidebar-divider{height:1px;background:var(--color-outline-variant);margin:6px 14px 8px}
-.set-pc-search-bar{position:relative;margin:0 0 14px;display:flex;align-items:center;width:100%}
+.set-pc-search-bar{position:relative;margin:0 0 14px;display:flex;align-items:center;width:100%;max-width:none!important}
 .set-pc-search-bar svg{position:absolute;left:10px;pointer-events:none;color:var(--color-on-surface-variant)}
 .set-pc-search-bar input{
   width:100%;padding:9px 12px 9px 34px;border-radius:var(--radius-sm);
@@ -25605,7 +25605,7 @@ function renderSettings() {
   const _sectionMatch  = (id) => _pcSearchMode ? true : ((_isMob || _pcPopup) ? _activeSection === id : true);
 
   const _pcSearchBar = _pcSearchMode ? `
-    <div class="set-pc-search-bar">
+    <div class="set-pc-search-bar" style="max-width:none">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input id="set-pc-search-input" type="text" placeholder="search all settings\u2026" value="${esc(S.globalSearch)}" oninput="onSettingsPopupSearch(this.value)">
     </div>` : '';
@@ -26143,7 +26143,7 @@ function onSettingsPopupSearch(val) {
       const pos = caret == null ? newInp.value.length : Math.min(caret, newInp.value.length);
       newInp.setSelectionRange(pos, pos);
     }
-  }, 120);
+  }, 0);
 }
 
 function renderSettingsPopupShell() {
