@@ -3864,6 +3864,7 @@ def _run_dl(did, q, fmt, quality, genius_track_id=None, video_id=None, is_batch=
         _dl(did, status='done', progress=100, song_id=sid)
     except Exception as e:
         traceback.print_exc()
+        _log_ytm.warning('[debug] except block: %s: %s, cmd=%r', type(e).__name__, e, _last_ydl_cmd)
         _dl(did, status='error', error=str(e)[:200],
             _error_cmd=' '.join(_last_ydl_cmd) if _last_ydl_cmd else None,
             _error_output=_last_ydl_out[-8000:] if _last_ydl_out else None)
