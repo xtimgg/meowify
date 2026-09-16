@@ -3245,7 +3245,11 @@ def _run_dl(did, q, fmt, quality, genius_track_id=None, video_id=None, is_batch=
     tmp = Path(tempfile.mkdtemp(prefix='meowify-'))
     mkdirs()
 
+    _last_ydl_cmd = []
+    _last_ydl_out = ''
+
     def ydl(target, _no_yt_args=False):
+        nonlocal _last_ydl_cmd, _last_ydl_out
         _cmd = ['yt-dlp', '--no-playlist', '-x',
                 '--audio-format', fmt, '--audio-quality', quality,
                 '--embed-metadata', '--write-thumbnail', '--convert-thumbnails', 'jpg',
@@ -3257,13 +3261,16 @@ def _run_dl(did, q, fmt, quality, genius_track_id=None, video_id=None, is_batch=
         if not _no_yt_args:
             _cmd += ['--extractor-args', 'youtube:player_client=mweb']
         _cmd += ['-o', str(tmp/'%(id)s.%(ext)s'), target]
+        _last_ydl_cmd = _cmd
         p = _subp(_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace')
         lines = []
         for ln in p.stdout:
             lines.append(ln)
             m = re.search(r'\[download\]\s+([\d.]+)%', ln)
             if m: _dl(did, progress=max(5, int(float(m.group(1))*0.6)+5))
-        p.wait(); return '\n'.join(lines), p.returncode
+        p.wait()
+        _last_ydl_out = '\n'.join(lines)
+        return _last_ydl_out, p.returncode
 
     def _ydl_no_results(out):
         """Return True if yt-dlp stdout indicates a throttled/empty search (rc=0 but no hits)."""
@@ -3510,7 +3517,9 @@ def _run_dl(did, q, fmt, quality, genius_track_id=None, video_id=None, is_batch=
                 out, rc = ydl(f'scsearch1:{q}', _no_yt_args=True)
 
         if rc != 0:
-            _dl(did, status='error', error='download failed - check query or URL')
+            _dl(did, status='error', error='download failed - check query or URL',
+                _error_cmd=' '.join(_last_ydl_cmd),
+                _error_output=_last_ydl_out[-8000:])
             _delete_placeholder(sid); return
 
         _dl(did, progress=80, song_id=sid, duplicate_sid=_dup_sid)
@@ -3519,7 +3528,9 @@ def _run_dl(did, q, fmt, quality, genius_track_id=None, video_id=None, is_batch=
         if not outs:
             outs = [f for f in tmp.iterdir() if f.suffix.lower().lstrip('.') in {'mp3','flac','wav','ogg','opus','m4a'}]
         if not outs:
-            _dl(did, status='error', error='no audio produced')
+            _dl(did, status='error', error='no audio produced',
+                _error_cmd=' '.join(_last_ydl_cmd),
+                _error_output=_last_ydl_out[-8000:])
             _delete_placeholder(sid); return
 
         src_file = outs[0]
@@ -3852,7 +3863,9 @@ def _run_dl(did, q, fmt, quality, genius_track_id=None, video_id=None, is_batch=
         _dl(did, status='done', progress=100, song_id=sid)
     except Exception as e:
         traceback.print_exc()
-        _dl(did, status='error', error=str(e)[:200])
+        _dl(did, status='error', error=str(e)[:200],
+            _error_cmd=' '.join(_last_ydl_cmd) if '_last_ydl_cmd' in dir() else '',
+            _error_output=_last_ydl_out[-8000:] if '_last_ydl_out' in dir() else '')
         if 'sid' in locals():
             try:
                 _delete_placeholder(sid)
@@ -21765,7 +21778,10 @@ function _renderDlPanel(opening) {
       ${!isDone && !isErr ? `<div style="height:2px;border-radius:1px;background:var(--color-outline-variant);margin-top:6px;margin-left:30px">
         <div style="width:${pct}%;height:100%;border-radius:1px;background:${barColor};transition:width .4s"></div>
       </div>` : ''}
-      ${isErr ? `<div style="font-size:11px;color:var(--color-error);margin-top:3px;margin-left:30px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.8">${esc(d.error||'failed')}</div>` : ''}
+      ${isErr ? `<div style="font-size:11px;color:var(--color-error);margin-top:3px;margin-left:30px;opacity:.8;display:flex;align-items:center;gap:6px;min-width:0">
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${esc(d.error||'failed')}</span>
+        ${(d._error_cmd!=null||d._error_output!=null) ? `<button onclick="event.stopPropagation();_showDlErrorDetail(${JSON.stringify(d._error_cmd||'')},${JSON.stringify(d._error_output||'')})" style="flex-shrink:0;font-size:10px;color:var(--color-on-surface-variant);background:none;border:none;padding:0 2px;cursor:pointer;text-decoration:underline;text-underline-offset:2px">details</button>` : ''}
+      </div>` : ''}
     </div>`;
   };
 
@@ -21846,6 +21862,19 @@ function _renderDlPanel(opening) {
     document.getElementById('dl-panel-btn')?.classList.add('active');
     document.addEventListener('click', _dlPanelOutsideClick, true);
   }
+}
+
+function _showDlErrorDetail(cmd, output) {
+  const body = `
+    <div style="margin-bottom:12px">
+      <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">command</div>
+      <pre style="font-family:monospace;font-size:11px;background:var(--color-surface-container-high);border-radius:var(--radius-sm);padding:8px 10px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;color:var(--color-on-surface);margin:0">${esc(cmd||'(not available)')}</pre>
+    </div>
+    <div>
+      <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">output</div>
+      <pre style="font-family:monospace;font-size:11px;background:var(--color-surface-container-high);border-radius:var(--radius-sm);padding:8px 10px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;color:var(--color-on-surface);margin:0;max-height:320px;overflow-y:auto">${esc(output||'(not available)')}</pre>
+    </div>`;
+  showModal('error', body, `<button class="btn btn-out mu-ripple" onclick="closeModal()">close</button>`);
 }
 
 function _clearFinishedDls() {
@@ -21932,6 +21961,8 @@ async function pollDl(did, batchId) {
     }
     if (s.status === 'error') {
       const item = _dlPanelItems[did];
+      if (item && s._error_cmd)    item._error_cmd    = s._error_cmd;
+      if (item && s._error_output) item._error_output = s._error_output;
       const MAX_RETRIES = 2;
       if (item && item._payload && (item._retries || 0) < MAX_RETRIES) {
         // auto-retry: re-POST with same payload, swap in new did
@@ -21955,7 +21986,11 @@ async function pollDl(did, batchId) {
         }
         return;
       }
-      if (item) { item.status = 'error'; item.error = s.error || 'failed'; }
+      if (item) {
+        item.status = 'error'; item.error = s.error || 'failed';
+        if (s._error_cmd)    item._error_cmd    = s._error_cmd;
+        if (s._error_output) item._error_output = s._error_output;
+      }
       _updateDlPanelBadge();
       if (s.song_id) { _activeDownloadWipes.delete(s.song_id); await loadData(); rerenderCurrentView(); }
       delete _ops[did]; _updateGlobalProg();
