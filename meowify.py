@@ -9391,7 +9391,7 @@ svg .left-ear, svg .right-ear{
 @media (hover: hover) {.nav-btn:hover{background:color-mix(in oklch,var(--color-on-surface) 8%,transparent);color:var(--color-on-surface)}}
 .nav-btn.active{background:var(--color-primary-container);color:var(--color-on-primary-container)}
 .nav-btn .ni{font-size:18px;width:22px;text-align:center;line-height:1}
-.sdiv{height:1px;background:color-mix(in oklch,var(--color-outline-variant) 40%,transparent);margin:8px 16px}
+.sdiv{height:1px;background:color-mix(in oklch,var(--color-outline-variant) 55%,var(--color-on-surface));margin:8px 16px}
 .pl-sec{flex:1;overflow-y:auto;padding:0 8px var(--bar-h)}
 .pl-sec::-webkit-scrollbar-track{margin-bottom:var(--bar-track-margin)}
 .pl-sec-hdr{
