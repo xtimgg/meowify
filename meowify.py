@@ -25625,11 +25625,13 @@ function renderSettings() {
   const _settingsTarget = _pcPopup ? document.getElementById('set-pc-content') : document.getElementById('vc');
   if (!_settingsTarget) return;
 
+  const _existingSearchBar = _pcSearchMode ? _settingsTarget.querySelector('.set-pc-search-bar') : null;
+
   _settingsTarget.innerHTML = `
     <div class="set-panel" style="max-width:640px;padding-top:8px">
       ${_backBtn}
       ${_pcCloseBtn}
-      ${_pcSearchBar}
+      ${_existingSearchBar ? '' : _pcSearchBar}
       ${_sectionMatch('playback') ? section('playback', `
         ${(()=>{
           const smode = S.shuffleMode || 'random';
