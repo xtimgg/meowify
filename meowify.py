@@ -25802,7 +25802,7 @@ function renderSettings() {
             </div>
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font:var(--type-label-small);color:var(--color-on-surface-variant);min-width:24px;text-align:right">bri</span>
-              <input type="range" min="50" max="200" value="${Math.round((CFG.theme_bri ?? 1.0)*100)}" class="slider" style="width:120px;"
+              <input type="range" min="50" max="300" value="${Math.round((CFG.theme_bri ?? 1.0)*100)}" class="slider" style="width:120px;"
                 class="slider" oninput="CFG.theme_bri=parseInt(this.value)/100;document.getElementById('bri-lbl').textContent=this.value+'%';applyTheme(CFG.theme_hue??145,CFG.theme_sat??50,CFG.theme_bri,true)"
                 onpointerup="saveSetting('theme_bri',CFG.theme_bri)">
               <span id="bri-lbl" style="font:var(--type-label-small);color:var(--color-on-surface-variant);min-width:32px">${Math.round((CFG.theme_bri ?? 1.0)*100)}%</span>
