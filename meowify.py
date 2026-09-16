@@ -23386,7 +23386,14 @@ function showModal(title, body, acts) {
     <div id="mbody">${body}</div>
     <div class="macts" id="macts">${acts}</div>
   </div>`;
-  requestAnimationFrame(() => ov.classList.add('open'));
+  requestAnimationFrame(() => {
+    ov.classList.add('open');
+    const b = document.getElementById('mbody');
+    if (b) {
+      _syncModalDividers();
+      b.addEventListener('scroll', _syncModalDividers, {passive:true});
+    }
+  });
 }
 
 function closeModal() {
