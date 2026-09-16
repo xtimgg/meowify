@@ -10722,7 +10722,7 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   padding:5px;min-width:176px;
   display:none;flex-direction:column;gap:1px;
 }
-#dl-panel-float
+#dl-panel-float{min-width:320px;max-height:420px;overflow:hidden;padding:0;}
 #ctx.on,#dl-panel-float.on{display:flex;animation:ctx-pop var(--dur-5) var(--ease-spring) both;}
 #ctx.on.no-anim,#dl-panel-float.on.no-anim{animation:none;}
 @keyframes ctx-pop{from{opacity:0;transform:scale(.82) translateY(-8px);}}
@@ -10786,7 +10786,7 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   background:oklch(0% 0 0/.5);
   display:none;align-items:center;justify-content:center;
 }
-#modal.on
+#modal.on{display:flex}
 #modal-overlay{
   position:fixed;inset:0;z-index:80;
   background:color-mix(in oklch,var(--color-scrim,#000) 55%,transparent);
@@ -10796,7 +10796,7 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   opacity:0;pointer-events:none;
   transition:opacity var(--dur-3,.2s) ease;
 }
-#modal-overlay.open
+#modal-overlay.open{opacity:1;pointer-events:auto}
 #modal-overlay .mbox{
   transform:scale(.97);transition:transform var(--dur-3,.2s) ease;
 }
