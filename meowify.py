@@ -10805,14 +10805,15 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
 #modal-overlay.open .mbox{transform:scale(1)}
 .mbox{
   background:var(--color-surface-container);
-  border-radius:var(--radius-xl);padding:24px;
+  border-radius:var(--radius-xl);padding:0;
   min-width:320px;max-width:460px;width:90%;
-  max-height:100%;overflow-y:auto;
+  max-height:100%;display:flex;flex-direction:column;
   box-shadow:var(--elevation-5);
   animation:mu-dialog-spring var(--dur-6) var(--ease-spring-soft) both;
 }
-.mtitle{font:var(--type-headline-small);font-variation-settings:var(--fv-headline);margin-bottom:16px}
-.macts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.mtitle{font:var(--type-headline-small);font-variation-settings:var(--fv-headline);padding:24px 24px 0;flex-shrink:0}
+#mbody{flex:1;overflow-y:auto;padding:16px 24px}
+.macts{display:flex;gap:8px;justify-content:flex-end;padding:0 24px 24px;flex-shrink:0;margin-top:0}
 /* empty state */
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:64px 0;color:var(--color-on-surface-variant)}
 .empty .ei{font-size:48px}
