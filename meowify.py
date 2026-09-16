@@ -9026,7 +9026,7 @@ def api_song_ytm_cover_refresh(sid):
 # ── HTML ───────────────────────────────────────────────────────────────────────
 def _theme_css(hue=145, sat=50, bri=1.0):
     h = float(hue)
-    s = max(0.0, min(100.0, float(sat)))
+    s = max(0.0, min(200.0, float(sat)))
     b = max(0.5, min(3.0, float(bri)))
     # MU reads data-mu-hue/sat/bri on <html> at init and runs Palette.init(h,s,b).
     # No separate <style id="dyn-theme"> needed — MU sets vars via element.style
