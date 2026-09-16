@@ -21979,6 +21979,8 @@ async function pollDl(did, batchId) {
           delete _dlPanelItems[did];
           delete _ops[did]; _updateGlobalProg();
           await pollDl(newDid, batchId);
+        } else {
+          item.status = 'error'; item.error = s.error || 'failed';
           if (s._error_cmd    != null) item._error_cmd    = s._error_cmd;
           if (s._error_output != null) item._error_output = s._error_output;
           _updateDlPanelBadge();
