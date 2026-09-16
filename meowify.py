@@ -21962,10 +21962,7 @@ async function pollDl(did, batchId) {
       return;
     }
     if (s.status === 'error') {
-      console.log('[dl error debug]', did, JSON.stringify({cmd: s._error_cmd, out: (s._error_output||'').slice(0,200)}));
       const item = _dlPanelItems[did];
-      if (item && s._error_cmd    != null) item._error_cmd    = s._error_cmd;
-      if (item && s._error_output != null) item._error_output = s._error_output;
       const MAX_RETRIES = 2;
       if (item && item._payload && (item._retries || 0) < MAX_RETRIES) {
         // auto-retry: re-POST with same payload, swap in new did
@@ -21984,18 +21981,12 @@ async function pollDl(did, batchId) {
           await pollDl(newDid, batchId);
         } else {
           item.status = 'error'; item.error = s.error || 'failed';
-          if (s._error_cmd    != null) item._error_cmd    = s._error_cmd;
-          if (s._error_output != null) item._error_output = s._error_output;
           _updateDlPanelBadge();
           delete _ops[did]; _updateGlobalProg();
         }
         return;
       }
-      if (item) {
-        item.status = 'error'; item.error = s.error || 'failed';
-        if (s._error_cmd    != null) item._error_cmd    = s._error_cmd;
-        if (s._error_output != null) item._error_output = s._error_output;
-      }
+      if (item) { item.status = 'error'; item.error = s.error || 'failed'; }
       _updateDlPanelBadge();
       if (s.song_id) { _activeDownloadWipes.delete(s.song_id); await loadData(); rerenderCurrentView(); }
       delete _ops[did]; _updateGlobalProg();
