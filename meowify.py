@@ -10653,7 +10653,7 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
 @media (max-width:767px){#set-pc-overlay{display:none!important}}
 .set-pc-item.set-pc-search-item{color:var(--color-on-surface-variant)}
 .set-pc-sidebar-divider{height:1px;background:var(--color-outline-variant);margin:6px 14px 8px}
-.set-pc-search-bar{position:relative;margin:0 0 14px;display:flex;align-items:center;width:100%;max-width:none!important}
+.set-pc-search-bar{position:relative;margin:0 0 14px;display:flex;align-items:center;width:100%;max-width:none!important;padding:0 2px}
 .set-pc-search-bar svg{position:absolute;left:10px;pointer-events:none;color:var(--color-on-surface-variant)}
 .set-pc-search-bar input{
   width:100%;padding:9px 12px 9px 34px;border-radius:var(--radius-sm);
