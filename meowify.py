@@ -21921,6 +21921,8 @@ async function pollDl(did, batchId) {
       _dlPanelItems[did].status = s.status;
       _dlPanelItems[did].progress = s.progress || 0;
       _dlPanelItems[did].statusLabel = _lbl;
+      if (s._error_cmd    != null) _dlPanelItems[did]._error_cmd    = s._error_cmd;
+      if (s._error_output != null) _dlPanelItems[did]._error_output = s._error_output;
       if (s.song_id) {
         const libSong = S.library.find(sg => sg.id === s.song_id);
         if (libSong && libSong.title) _dlPanelItems[did].label = libSong.title + (libSong.artist ? ' \u2014 ' + libSong.artist : '');
