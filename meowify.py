@@ -21780,7 +21780,7 @@ function _renderDlPanel(opening) {
       </div>` : ''}
       ${isErr ? `<div style="font-size:11px;color:var(--color-error);margin-top:3px;margin-left:30px;opacity:.8;display:flex;align-items:center;gap:6px;min-width:0">
         <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${esc(d.error||'failed')}</span>
-        ${(d._error_cmd!=null||d._error_output!=null) ? `<button onclick="event.stopPropagation();_showDlErrorDetail(${JSON.stringify(d._error_cmd||'')},${JSON.stringify(d._error_output||'')})" style="flex-shrink:0;font-size:10px;color:var(--color-on-surface-variant);background:none;border:none;padding:0 2px;cursor:pointer;text-decoration:underline;text-underline-offset:2px">details</button>` : ''}
+        ${(d._error_cmd!=null||d._error_output!=null) ? `<button data-did="${esc(d.did||'')}" onclick="event.stopPropagation();_showDlErrorDetail(this)" style="flex-shrink:0;font-size:10px;color:var(--color-on-surface-variant);background:none;border:none;padding:0 2px;cursor:pointer;text-decoration:underline;text-underline-offset:2px">details</button>` : ''}
       </div>` : ''}
     </div>`;
   };
@@ -21864,7 +21864,11 @@ function _renderDlPanel(opening) {
   }
 }
 
-function _showDlErrorDetail(cmd, output) {
+function _showDlErrorDetail(btn) {
+  const did = btn.dataset.did;
+  const d = did ? _dlPanelItems[did] : null;
+  const cmd = d?._error_cmd || '';
+  const output = d?._error_output || '';
   const body = `
     <div style="margin-bottom:12px">
       <div style="font:var(--type-label-small);font-variation-settings:var(--fv-label);color:var(--color-on-surface-variant);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">command</div>
@@ -21923,7 +21927,6 @@ async function pollDl(did, batchId) {
       _dlPanelItems[did].statusLabel = _lbl;
       if (s._error_cmd    != null) _dlPanelItems[did]._error_cmd    = s._error_cmd;
       if (s._error_output != null) _dlPanelItems[did]._error_output = s._error_output;
-      if (s.status === 'error') alert('got error tick — cmd: ' + (s._error_cmd ? 'YES' : 'NO') + ', item cmd: ' + (_dlPanelItems[did]?._error_cmd ? 'YES' : 'NO'));
       if (s.song_id) {
         const libSong = S.library.find(sg => sg.id === s.song_id);
         if (libSong && libSong.title) _dlPanelItems[did].label = libSong.title + (libSong.artist ? ' \u2014 ' + libSong.artist : '');
