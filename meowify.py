@@ -10811,11 +10811,12 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   box-shadow:var(--elevation-5);
   animation:mu-dialog-spring var(--dur-6) var(--ease-spring-soft) both;
 }
-.mtitle{font:var(--type-headline-small);font-variation-settings:var(--fv-headline);padding:24px 24px 16px;flex-shrink:0;border-bottom:1px solid transparent;transition:border-color var(--dur-2,.15s)}
-.mtitle.mbody-scrolled{border-bottom-color:var(--color-surface-container-highest)}
-#mbody{flex:1;overflow-y:auto;padding:0 24px;scroll-padding-top:8px}
-.macts{display:flex;gap:8px;justify-content:flex-end;padding:16px 24px;flex-shrink:0;margin-top:0;border-top:1px solid transparent;transition:border-color var(--dur-2,.15s)}
-.macts.mbody-more{border-top-color:var(--color-surface-container-highest)}
+.mtitle{font:var(--type-headline-small);font-variation-settings:var(--fv-headline);padding:24px 24px 16px;flex-shrink:0}
+#mbody{flex:1;overflow-y:auto;padding:0 24px;scroll-padding-top:8px;transition:box-shadow var(--dur-2,.15s)}
+#mbody.mbody-scrolled{box-shadow:inset 0 8px 6px -6px rgba(0,0,0,.25)}
+#mbody.mbody-more{box-shadow:inset 0 -8px 6px -6px rgba(0,0,0,.25)}
+#mbody.mbody-scrolled.mbody-more{box-shadow:inset 0 8px 6px -6px rgba(0,0,0,.25),inset 0 -8px 6px -6px rgba(0,0,0,.25)}
+.macts{display:flex;gap:8px;justify-content:flex-end;padding:16px 24px;flex-shrink:0;margin-top:0}
 /* empty state */
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:64px 0;color:var(--color-on-surface-variant)}
 .empty .ei{font-size:48px}
