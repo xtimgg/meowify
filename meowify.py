@@ -3517,6 +3517,7 @@ def _run_dl(did, q, fmt, quality, genius_track_id=None, video_id=None, is_batch=
                 out, rc = ydl(f'scsearch1:{q}', _no_yt_args=True)
 
         if rc != 0:
+            _log_ytm.warning('[debug] rc!=0, cmd=%r, out_len=%d', ' '.join(_last_ydl_cmd), len(_last_ydl_out))
             _dl(did, status='error', error='download failed - check query or URL',
                 _error_cmd=' '.join(_last_ydl_cmd),
                 _error_output=_last_ydl_out[-8000:])
