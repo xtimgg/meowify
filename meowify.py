@@ -10721,6 +10721,7 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   box-shadow:0 8px 32px rgba(0,0,0,.55);
   padding:5px;min-width:176px;
   display:none;flex-direction:column;gap:1px;
+  zoom:var(--ui-zoom,1);
 }
 #dl-panel-float{min-width:320px;max-height:420px;overflow:hidden;padding:0;}
 #ctx.on,#dl-panel-float.on{display:flex;animation:ctx-pop var(--dur-5) var(--ease-spring) both;}
@@ -10785,6 +10786,7 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
   position:fixed;inset:0;z-index:900;
   background:oklch(0% 0 0/.5);
   display:none;align-items:center;justify-content:center;
+  zoom:var(--ui-zoom,1);
 }
 #modal.on{display:flex}
 #modal-overlay{
