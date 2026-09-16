@@ -25625,10 +25625,10 @@ function renderSettings() {
   if (!_settingsTarget) return;
 
   _settingsTarget.innerHTML = `
+      ${_pcSearchBar}
     <div class="set-panel" style="max-width:640px;padding-top:8px">
       ${_backBtn}
       ${_pcCloseBtn}
-      ${_pcSearchBar}
       ${_sectionMatch('playback') ? section('playback', `
         ${(()=>{
           const smode = S.shuffleMode || 'random';
