@@ -23368,10 +23368,13 @@ function initDrag(pid) {
 function _syncModalDividers() {
   const b = document.getElementById('mbody');
   if (!b) return;
+  const box = b.closest('.mbox');
   const atTop = b.scrollTop < 2;
   const atBot = b.scrollTop + b.clientHeight >= b.scrollHeight - 2;
   b.classList.toggle('mbody-scrolled', !atTop);
   b.classList.toggle('mbody-more', !atBot);
+  box?.querySelector('.mtitle')?.classList.toggle('mbody-scrolled', !atTop);
+  box?.querySelector('.macts')?.classList.toggle('mbody-more', !atBot);
 }
 function showModal(title, body, acts) {
   let ov = document.getElementById('modal-overlay');
