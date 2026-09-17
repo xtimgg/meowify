@@ -11132,13 +11132,16 @@ body.design-glassy .list-header.pinned::before{
 .mob-filter-search:focus { border-color: var(--color-primary); outline: none; }
 /* tsearch icon — two morphing paths, CSS d transition */
 #tsearch-wrap{display:flex;align-items:center;flex-shrink:0}
-#tsearch-pL{d:path("M5.5 12 Q5.5 5.5 12 5.5 Q18.5 5.5 18.5 12 Q18.5 18.5 12 18.5 Q5.5 18.5 5.5 12");transform:translate(-1.5px,-1.5px)}
+#tsearch-pL-def{d:path("M5.5 12 Q5.5 5.5 12 5.5 Q18.5 5.5 18.5 12 Q18.5 18.5 12 18.5 Q5.5 18.5 5.5 12")}
+#tsearch-pL{x:-1.5;y:-1.5}
 #tsearch-pR{d:path("M15.2 15.2 Q17 17 19.5 19.5")}
-#tsearch-btn.open #tsearch-pL{d:path("M5.5 5.5 Q12 12 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5");transform:translate(0px,0px)}
+#tsearch-btn.open #tsearch-pL-def{d:path("M5.5 5.5 Q12 12 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5")}
+#tsearch-btn.open #tsearch-pL{x:0;y:0}
 #tsearch-btn.open #tsearch-pR{d:path("M18.5 5.5 Q12 12 5.5 18.5")}
-#tsearch-pL{transition:d .1s cubic-bezier(0,1,0,1),transform .5s cubic-bezier(.25,1.8,.4,1)}
+#tsearch-pL-def{transition:d .1s cubic-bezier(0,1,0,1)}
+#tsearch-pL{transition:x .5s cubic-bezier(.25,1.8,.4,1),y .5s cubic-bezier(.25,1.8,.4,1)}
 #tsearch-pR{transition:d .5s cubic-bezier(.25,1.4,.4,1)}
-#tsearch-btn.open #tsearch-pL{transition:d .5s cubic-bezier(.25,1.4,.4,1)}
+#tsearch-btn.open #tsearch-pL-def{transition:d .5s cubic-bezier(.25,1.4,.4,1)}
 
 #dl-panel-btn path, #dl-panel-btn polyline { transition: .4s cubic-bezier(.3,2,.4,1) }
 #dl-panel-btn.active path { d: path("M3,15 Q4,22 12,22 Q20,22 21,15") }
