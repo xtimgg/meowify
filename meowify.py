@@ -11132,14 +11132,11 @@ body.design-glassy .list-header.pinned::before{
 .mob-filter-search:focus { border-color: var(--color-primary); outline: none; }
 /* tsearch icon — two morphing paths, CSS d transition */
 #tsearch-wrap{display:flex;align-items:center;flex-shrink:0}
-#tsearch-pL{d:path("M5.5 12 Q5.5 5.5 12 5.5 Q18.5 5.5 18.5 12 Q18.5 18.5 12 18.5 Q5.5 18.5 5.5 12")}
-#tsearch-gL{transform:translate(-1.5px,-1.5px)}
+#tsearch-pL{d:path("M5.5 12 Q5.5 5.5 12 5.5 Q18.5 5.5 18.5 12 Q18.5 18.5 12 18.5 Q5.5 18.5 5.5 12");transform:translate(-1.5px,-1.5px)}
 #tsearch-pR{d:path("M15.2 15.2 Q17 17 19.5 19.5")}
-#tsearch-btn.open #tsearch-pL{d:path("M5.5 5.5 Q12 12 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5")}
-#tsearch-btn.open #tsearch-gL{transform:translate(0px,0px)}
+#tsearch-btn.open #tsearch-pL{d:path("M5.5 5.5 Q12 12 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5");transform:translate(0px,0px)}
 #tsearch-btn.open #tsearch-pR{d:path("M18.5 5.5 Q12 12 5.5 18.5")}
-#tsearch-pL{transition:d .1s cubic-bezier(0,1,0,1)}
-#tsearch-gL{transition:transform .5s cubic-bezier(.25,1.8,.4,1)}
+#tsearch-pL{transition:d .1s cubic-bezier(0,1,0,1),transform .5s cubic-bezier(.25,1.8,.4,1)}
 #tsearch-pR{transition:d .5s cubic-bezier(.25,1.4,.4,1)}
 #tsearch-btn.open #tsearch-pL{transition:d .5s cubic-bezier(.25,1.4,.4,1)}
 
@@ -16079,7 +16076,8 @@ function renderTopbarSearch(v) {
       <div id="tsearch-wrap">
         <button id="tsearch-btn" onclick="toggleGlobalSearch()" title="search" class="cbtn mu-ripple">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block">
-            <path id="tsearch-pL"/>
+            <defs><path id="tsearch-pL-def"/></defs>
+            <use id="tsearch-pL" href="#tsearch-pL-def"/>
             <path id="tsearch-pR"/>
           </svg>
         </button>
