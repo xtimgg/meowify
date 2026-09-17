@@ -9435,10 +9435,67 @@ svg .left-ear, svg .right-ear{
   position:relative;z-index:1;
   overflow:hidden;min-width:0;
 }
+/* title + search overlay container */
+.topbar-title-area{
+  flex:1;min-width:0;position:relative;
+  display:flex;align-items:center;
+  height:32px;
+  overflow:hidden;
+}
 .topbar-title{
   font:var(--type-title-large);font-variation-settings:var(--fv-title);
-  font-size: 19px;
-  color:var(--color-on-surface);flex:1;min-width:0;
+  font-size:19px;
+  color:var(--color-on-surface);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  position:relative;z-index:1;
+  transition:opacity .18s cubic-bezier(.4,0,.2,1), transform .22s cubic-bezier(.4,0,.2,1);
+  will-change:opacity,transform;
+  pointer-events:none;
+}
+/* search overlay: sits on top of title text, full width */
+.topbar-search-overlay{
+  position:absolute;inset:0;
+  display:flex;align-items:center;
+  pointer-events:none;
+  overflow:hidden;
+}
+.tsearch-prefix{
+  font:var(--type-title-large);font-variation-settings:var(--fv-title);
+  font-size:19px;
+  color:var(--color-on-surface-variant);
+  white-space:nowrap;flex-shrink:0;
+  opacity:0;
+  transform:translateX(-8px);
+  transition:opacity .22s cubic-bezier(.4,0,.2,1), transform .24s cubic-bezier(.34,1.4,.64,1);
+  will-change:opacity,transform;
+}
+#tsearch-input{
+  flex:1;min-width:0;
+  background:none;border:none;outline:none;padding:0;margin:0;
+  font:var(--type-title-large);font-variation-settings:var(--fv-title);
+  font-size:19px;
+  color:var(--color-on-surface);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s .06s cubic-bezier(.4,0,.2,1);
+  will-change:opacity;
+  caret-color:var(--color-primary);
+}
+/* active search state */
+.topbar-title-area.search-open .topbar-title{
+  opacity:0;
+  transform:translateX(6px);
+}
+.topbar-title-area.search-open .topbar-search-overlay{
+  pointer-events:all;
+}
+.topbar-title-area.search-open .tsearch-prefix{
+  opacity:1;
+  transform:translateX(0);
+}
+.topbar-title-area.search-open #tsearch-input{
+  opacity:1;
+  pointer-events:all;
 }
 .topbar-acts{display:flex;gap:8px;flex-shrink:0;min-width:0}
 #content-area{flex:1;display:flex;overflow:hidden}
@@ -10149,7 +10206,7 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
     width: 28px;
     height: 28px;
 }
-@media (hover: hover) {.cbtn:hover:not(#tsearch-wrap.open .cbtn:hover){background:color-mix(in oklch,var(--color-on-surface) 10%,transparent)}}
+@media (hover: hover) {.cbtn:hover{background:color-mix(in oklch,var(--color-on-surface) 10%,transparent)}}
 @media (hover: hover) {.cbtn:hover{color:var(--color-on-surface)}}
 .cbtn.active{color:var(--color-primary) !important;background:color-mix(in oklch,var(--color-primary) 12%,transparent)}
 @media (hover: hover) {.cbtn.active:hover{background:color-mix(in oklch,var(--color-primary) 20%,transparent)!important}}
@@ -11073,35 +11130,14 @@ body.design-glassy .list-header.pinned::before{
   width: 100%; transition: border-color var(--dur-2);
 }
 .mob-filter-search:focus { border-color: var(--color-primary); outline: none; }
-/* topbar search input pill */
-#tsearch-wrap {
-  display: flex;
-  align-items: center;
-  border-radius: var(--radius-full);
-  background: transparent;
-  border: 1.5px solid transparent;
-  width: 34px;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: width .3s cubic-bezier(.4,0,.2,1), background .22s, border-color .22s;
-}
-#tsearch-wrap.open {
-  width: 230px;
-  max-width: min(230px, calc(100vw - 160px));
-  background: var(--color-surface-container-high);
-  border-color: var(--color-outline-variant);
-}
-#tsearch-wrap.open:focus-within { border-color: var(--color-primary); }
-#tsearch-input {
-  flex: 1; min-width: 0;
-  background: none; border: none; outline: none;
-  padding: 0 12px 0 0;
-  color: var(--color-on-surface);
-  font: var(--type-body-medium); font-variation-settings: var(--fv-body);
-  opacity: 0; pointer-events: none;
-  transition: opacity .18s .08s;
-}
-#tsearch-wrap.open #tsearch-input { opacity: 1; pointer-events: all; }
+/* tsearch icon — two morphing paths, CSS d transition */
+#tsearch-wrap{display:flex;align-items:center;flex-shrink:0}
+#tsearch-pL{d:path("M5.5 12 Q5.5 5.5 12 5.5 Q18.5 5.5 18.5 12 Q18.5 18.5 12 18.5 Q5.5 18.5 5.5 12");transform:translate(-1.5px,-1.5px)}
+#tsearch-pR{d:path("M15.2 15.2 Q17 17 19.5 19.5")}
+#tsearch-btn.open #tsearch-pL{d:path("M5.5 5.5 Q12 12 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5");transform:translate(0px,0px)}
+#tsearch-btn.open #tsearch-pR{d:path("M18.5 5.5 Q12 12 5.5 18.5")}
+#tsearch-pL{transition:d .5s cubic-bezier(.25,1.4,.4,1),transform .5s cubic-bezier(.25,1.4,.4,1)}
+#tsearch-pR{transition:d .5s cubic-bezier(.25,1.4,.4,1)}
 
 #dl-panel-btn path, #dl-panel-btn polyline { transition: .4s cubic-bezier(.3,2,.4,1) }
 #dl-panel-btn.active path { d: path("M3,15 Q4,22 12,22 Q20,22 21,15") }
@@ -11331,7 +11367,17 @@ body.design-glassy .list-header.pinned::before{
 
   <div id="main">
     <div class="topbar ui-topbar">
-      <div class="topbar-title" id="vtitle">library</div>
+      <div id="topbar-search-wrap" style="display:flex;align-items:center;flex-shrink:0"></div>
+      <div class="topbar-title-area" id="topbar-title-area">
+        <div class="topbar-title" id="vtitle">library</div>
+        <div class="topbar-search-overlay" id="topbar-search-overlay" aria-hidden="true">
+          <span class="tsearch-prefix" id="tsearch-prefix">search: </span>
+          <input id="tsearch-input" type="text"
+            autocomplete="off" spellcheck="false"
+            oninput="onGlobalSearch(this.value)"
+            onkeydown="if(event.key==='Escape')toggleGlobalSearch(true)">
+        </div>
+      </div>
       <div class="topbar-acts" id="tacts"></div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:4px">
         <div id="topbar-dl-wrap" style="position:relative">
@@ -11351,7 +11397,6 @@ body.design-glassy .list-header.pinned::before{
             <path id="topbar-gear-path" fill="currentColor" mask="url(#topbar-gear-mask)"/>
           </svg>
         </button>
-        <div id="topbar-search-wrap" style="display:flex;align-items:center"></div>
       </div>
     </div>
     <div id="global-prog" style="height:3px;background:var(--color-surface-container-highest);flex-shrink:0;display:none"><div id="global-prog-fill" style="height:100%;background:var(--color-primary);transition:width .4s;width:0%"></div></div>
@@ -16025,68 +16070,72 @@ function renderTopbarSearch(v) {
   const wrap = document.getElementById('topbar-search-wrap');
   if (!wrap) return;
   const isOpen = S.globalSearchOpen;
-  // lens: 2π×7≈43.98, handle≈6.36, ×-diag: (17-7)√2≈14.14
-  wrap.innerHTML = `
-    <div id="tsearch-wrap" class="${isOpen ? 'open' : ''}">
-      <button id="tsearch-btn" onclick="toggleGlobalSearch()" title="search" class="cbtn mu-ripple">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block">
-          <circle id="tsearch-circle" cx="11" cy="11" r="7"
-            style="stroke-dasharray:44;stroke-dashoffset:${isOpen?'44':'0'};transition:stroke-dashoffset .26s cubic-bezier(.4,0,.2,1)"/>
-          <line id="tsearch-handle" x1="16.5" y1="16.5" x2="21" y2="21"
-            style="stroke-dasharray:6.4;stroke-dashoffset:${isOpen?'6.4':'0'};transition:stroke-dashoffset .2s .04s cubic-bezier(.4,0,.2,1)"/>
-          <line id="tsearch-x1" x1="7" y1="7" x2="17" y2="17"
-            style="stroke-dasharray:14.14;stroke-dashoffset:${isOpen?'0':'14.14'};transition:stroke-dashoffset .22s .08s cubic-bezier(.4,0,.2,1)"/>
-          <line id="tsearch-x2" x1="17" y1="7" x2="7" y2="17"
-            style="stroke-dasharray:14.14;stroke-dashoffset:${isOpen?'0':'14.14'};transition:stroke-dashoffset .22s .13s cubic-bezier(.4,0,.2,1)"/>
-        </svg>
-      </button>
-      <input id="tsearch-input" type="text"
-        placeholder="${_searchPlaceholder(v)}"
-        value="${esc(S.globalSearch)}"
-        oninput="onGlobalSearch(this.value)"
-        onkeydown="if(event.key==='Escape')toggleGlobalSearch(true)">
-    </div>`;
+  if (!wrap.firstChild) {
+    wrap.innerHTML = `
+      <div id="tsearch-wrap">
+        <button id="tsearch-btn" onclick="toggleGlobalSearch()" title="search" class="cbtn mu-ripple">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block">
+            <path id="tsearch-pL"/>
+            <path id="tsearch-pR"/>
+          </svg>
+        </button>
+      </div>`;
+  }
+  _tsearchSyncOverlay(v, isOpen);
+  if (isOpen) _tsearchOpen();
+}
+
+function _tsearchSyncOverlay(v, isOpen) {
+  const inp = document.getElementById('tsearch-input');
+  const prefix = document.getElementById('tsearch-prefix');
+  const area = document.getElementById('topbar-title-area');
+  if (!inp || !prefix || !area) return;
+  // set placeholder from current view
+  inp.placeholder = _searchPlaceholder(v);
+  inp.value = S.globalSearch || '';
   if (isOpen) {
-    requestAnimationFrame(() => requestAnimationFrame(() => _tsearchOpen()));
+    area.classList.add('search-open');
+  } else {
+    area.classList.remove('search-open');
   }
 }
 
 function _tsearchOpen() {
-  const wrap   = document.getElementById('tsearch-wrap');
-  const inp    = document.getElementById('tsearch-input');
-  const circle = document.getElementById('tsearch-circle');
-  const handle = document.getElementById('tsearch-handle');
-  const x1     = document.getElementById('tsearch-x1');
-  const x2     = document.getElementById('tsearch-x2');
-  if (!wrap) return;
-  wrap.classList.add('open');
-  circle.style.strokeDashoffset = '44';
-  handle.style.strokeDashoffset = '6.4';
-  x1.style.strokeDashoffset = '0';
-  x2.style.strokeDashoffset = '0';
-  setTimeout(() => inp?.focus(), 300);
+  const btn = document.getElementById('tsearch-btn');
+  const area = document.getElementById('topbar-title-area');
+  const inp  = document.getElementById('tsearch-input');
+  if (btn)  { btn.classList.add('open'); btn.title = 'close search'; }
+  if (area) area.classList.add('search-open');
+  setTimeout(() => inp?.focus(), 280);
 }
 
 function _tsearchClose() {
-  const wrap   = document.getElementById('tsearch-wrap');
-  const inp    = document.getElementById('tsearch-input');
-  const circle = document.getElementById('tsearch-circle');
-  const handle = document.getElementById('tsearch-handle');
-  const x1     = document.getElementById('tsearch-x1');
-  const x2     = document.getElementById('tsearch-x2');
-  if (!wrap) return;
-  wrap.classList.remove('open');
-  circle.style.strokeDashoffset = '0';
-  handle.style.strokeDashoffset = '0';
-  x1.style.strokeDashoffset = '14.14';
-  x2.style.strokeDashoffset = '14.14';
+  const btn = document.getElementById('tsearch-btn');
+  const area = document.getElementById('topbar-title-area');
+  const inp  = document.getElementById('tsearch-input');
+  if (btn)  { btn.classList.remove('open'); btn.title = 'search'; }
+  if (area) area.classList.remove('search-open');
   inp?.blur();
 }
 
 function _searchPlaceholder(v) {
-  if (v === 'settings') return 'filter settings\u2026';
-  if (v === 'stats') return 'filter stats\u2026';
-  return 'search\u2026';
+  // shown inside the input — prefix "search: " is rendered separately
+  if (v === 'settings') return 'settings\u2026';
+  if (v === 'stats')    return 'stats\u2026';
+  if (v === 'playlist') {
+    const pl = S.playlists?.find(p => p.id === S.activePid);
+    return (pl ? pl.name : 'playlist') + '\u2026';
+  }
+  if (v === 'album') {
+    const alb = S.albums?.find(a => a.id === S.activeAid);
+    return (alb ? alb.title : 'album') + '\u2026';
+  }
+  if (v === 'artist') {
+    const vtxt = document.getElementById('vtitle')?.textContent;
+    return (vtxt && vtxt !== 'artist' ? vtxt : 'artist') + '\u2026';
+  }
+  if (v === 'add') return 'add music\u2026';
+  return 'library\u2026';
 }
 
 function toggleGlobalSearch(forceClose) {
@@ -16104,11 +16153,10 @@ function toggleGlobalSearch(forceClose) {
     _applyGlobalSearch();
   } else {
     S.globalSearchOpen = true;
-    if (document.getElementById('tsearch-wrap') && !document.getElementById('tsearch-wrap').classList.contains('open')) {
-      _tsearchOpen();
-    } else {
-      renderTopbarSearch(S.view);
-    }
+    // update placeholder in case view changed since last open
+    const inp = document.getElementById('tsearch-input');
+    if (inp) inp.placeholder = _searchPlaceholder(S.view);
+    _tsearchOpen();
   }
 }
 
@@ -24042,7 +24090,9 @@ body.design-paper .nav-btn.active{
   filter:url(#ink-rough);
   text-shadow:0 0 10px color-mix(in oklch,var(--paper-accent) 25%,transparent);
 }
-body.design-paper .topbar-title{color:var(--paper-ink)!important;font-style:italic;letter-spacing:-0.3px;filter:url(#ink-text)}
+body.design-paper .topbar-title,
+body.design-paper .tsearch-prefix,
+body.design-paper #tsearch-input{color:var(--paper-ink)!important;font-style:italic;letter-spacing:-0.3px;filter:url(#ink-text)}
 body.design-paper .p-title{color:var(--paper-ink)!important;font-weight:700;font-style:italic;text-shadow:0 1px 5px rgba(0,0,0,0.6);filter:url(#ink-text)}
 body.design-paper .p-artist{color:var(--paper-ink-dim)!important}
 body.design-paper .stitle{color:var(--paper-ink)!important;font-weight:500}
@@ -24103,7 +24153,7 @@ body.design-terminal .nav-btn.active{background:var(--trm-green-faint)!important
 body.design-terminal .nav-btn.active::before{content:'> ';color:var(--trm-green)}
 body.design-terminal .topbar{background:var(--trm-surface)!important;border-bottom:1px solid var(--trm-border)!important;box-shadow:none!important}
 body.design-terminal .topbar-title{color:var(--trm-green)!important;text-transform:lowercase;letter-spacing:1px;font-weight:600}
-body.design-terminal .topbar-title::before{content:'~/';color:var(--trm-text-dim)}
+body.design-terminal .topbar-title-area:not(.search-open) .topbar-title::before{content:'~/';color:var(--trm-text-dim)}
 body.design-terminal #player{background:var(--trm-surface)!important;border-top:1px solid var(--trm-border-hi)!important;box-shadow:0 -2px 0 var(--trm-green-ghost)!important}
 body.design-terminal .p-title{color:var(--trm-green)!important;text-shadow:0 0 6px color-mix(in oklch,var(--trm-green) 40%,transparent);font-weight:600}
 body.design-terminal .p-title::before{content:'▶ ';font-size:10px;opacity:0.7}
@@ -26518,7 +26568,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             openSettingsPopupSearch();
           } else {
             if (!S.globalSearchOpen) toggleGlobalSearch();
-            setTimeout(() => document.getElementById('tsearch-input')?.focus(), 260);
+            setTimeout(() => document.getElementById('tsearch-input')?.focus(), 290);
           }
         }
         break;
