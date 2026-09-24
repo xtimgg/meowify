@@ -10207,6 +10207,7 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
 }
 @media (hover: hover) {.cbtn:hover{background:color-mix(in oklch,var(--color-on-surface) 10%,transparent)}}
 @media (hover: hover) {.cbtn:hover{color:var(--color-on-surface)}}
+.topbar .cbtn{color:color-mix(in srgb, var(--color-on-primary-container) 30%, #ffffff 70%)}
 .cbtn.active{color:var(--color-primary) !important;background:color-mix(in oklch,var(--color-primary) 12%,transparent)}
 @media (hover: hover) {.cbtn.active:hover{background:color-mix(in oklch,var(--color-primary) 20%,transparent)!important}}
 #blyrics-sync .clock-minute { transition: transform .6s cubic-bezier(.5,1.25,.4,1); transform-origin: 10px 10px; }
