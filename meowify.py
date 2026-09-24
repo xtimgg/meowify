@@ -11354,12 +11354,8 @@ body.design-glassy .list-header.pinned::before{
 
   <div id="main">
     <div class="topbar ui-topbar">
+      <div id="topbar-search-wrap" style="display:flex;align-items:center;flex-shrink:0"></div>
       <div class="topbar-title-area" id="topbar-title-area">
-        <button id="tsearch-btn" onclick="toggleGlobalSearch()" title="search" class="cbtn mu-ripple">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;scale:1.1">
-            <path id="tsearch-pL"/><path id="tsearch-pR"/>
-          </svg>
-        </button>
         <div class="topbar-title" id="vtitle">library</div>
         <div class="topbar-search-overlay" id="topbar-search-overlay" aria-hidden="true">
           <input id="tsearch-input" type="text"
@@ -16057,21 +16053,29 @@ function setView(v, pid, aid) {
 }
 
 function renderTopbarSearch(v) {
-  _tsearchSyncOverlay(v, S.globalSearchOpen);
-}
-
-function _tsearchSyncOverlay(v, isOpen) {
+  const wrap = document.getElementById('topbar-search-wrap');
+  if (!wrap) return;
+  if (!wrap.firstChild) {
+    wrap.innerHTML = `
+      <div id="tsearch-wrap">
+        <button id="tsearch-btn" onclick="toggleGlobalSearch()" title="search" class="cbtn mu-ripple">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;scale: 1.1;">
+            <path id="tsearch-pL"/>
+            <path id="tsearch-pR"/>
+          </svg>
+        </button>
+      </div>`;
+  }
+  const isOpen = S.globalSearchOpen;
   const btn  = document.getElementById('tsearch-btn');
-  const inp  = document.getElementById('tsearch-input');
   const area = document.getElementById('topbar-title-area');
-  if (!btn || !inp || !area) return;
+  const inp  = document.getElementById('tsearch-input');
+  if (!inp || !area) return;
   inp.placeholder = _searchPlaceholder(v);
   inp.value = S.globalSearch || '';
   area.classList.toggle('search-open', isOpen);
-  btn.classList.toggle('open', isOpen);
-  btn.title = isOpen ? 'close search' : 'search';
+  if (btn) { btn.classList.toggle('open', isOpen); btn.title = isOpen ? 'close search' : 'search'; }
   if (isOpen) inp.focus();
-  else inp.blur();
 }
 
 function _searchPlaceholder(v) {
@@ -16100,12 +16104,17 @@ function toggleGlobalSearch(forceClose) {
     S.globalSearch = '';
     S.libSearch = '';
     clearTimeout(_searchDebounceT);
-    _tsearchSyncOverlay(S.view, false);
+    const inp = document.getElementById('tsearch-input');
+    const area = document.getElementById('topbar-title-area');
+    const btn  = document.getElementById('tsearch-btn');
+    if (inp)  { inp.value = ''; inp.blur(); }
+    if (area) area.classList.remove('search-open');
+    if (btn)  { btn.classList.remove('open'); btn.title = 'search'; }
     document.body.focus();
     _applyGlobalSearch();
   } else {
     S.globalSearchOpen = true;
-    _tsearchSyncOverlay(S.view, true);
+    renderTopbarSearch(S.view);
   }
 }
 
@@ -26517,7 +26526,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             openSettingsPopupSearch();
           } else {
             if (!S.globalSearchOpen) toggleGlobalSearch();
-            document.getElementById('tsearch-input')?.focus();
+            setTimeout(() => document.getElementById('tsearch-input')?.focus(), 290);
           }
         }
         break;
