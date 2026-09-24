@@ -9429,8 +9429,7 @@ svg .left-ear, svg .right-ear{
   display:flex;align-items:center;gap:6px;
   padding:6px 12px 4px 8px;
   flex-shrink:0;
-  color:color-mix(in srgb, var(--color-on-primary-container) 30%, #ffffff 70%);
-  font-weight:420;
+  color:color-mix(in srgb, var(--color-on-primary-container) 50%, #ffffff 50%);
   background:var(--color-surface-container-low);
   border-bottom:1px solid var(--color-outline-variant);
   box-shadow:0 2px 16px rgba(0,0,0,.14);
@@ -9446,7 +9445,7 @@ svg .left-ear, svg .right-ear{
 }
 .topbar-title{
   font:var(--type-title-large);font-variation-settings:var(--fv-title);
-  font-size:19px;
+  font-size:19px;font-weight:420;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   position:relative;z-index:1;
   transition:opacity .18s cubic-bezier(.4,0,.2,1), transform .22s cubic-bezier(.4,0,.2,1);
@@ -11355,8 +11354,12 @@ body.design-glassy .list-header.pinned::before{
 
   <div id="main">
     <div class="topbar ui-topbar">
-      <div id="topbar-search-wrap" style="display:flex;align-items:center;flex-shrink:0"></div>
       <div class="topbar-title-area" id="topbar-title-area">
+        <button id="tsearch-btn" onclick="toggleGlobalSearch()" title="search" class="cbtn mu-ripple">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;scale:1.1">
+            <path id="tsearch-pL"/><path id="tsearch-pR"/>
+          </svg>
+        </button>
         <div class="topbar-title" id="vtitle">library</div>
         <div class="topbar-search-overlay" id="topbar-search-overlay" aria-hidden="true">
           <input id="tsearch-input" type="text"
@@ -16054,54 +16057,21 @@ function setView(v, pid, aid) {
 }
 
 function renderTopbarSearch(v) {
-  const wrap = document.getElementById('topbar-search-wrap');
-  if (!wrap) return;
-  const isOpen = S.globalSearchOpen;
-  if (!wrap.firstChild) {
-    wrap.innerHTML = `
-      <div id="tsearch-wrap">
-        <button id="tsearch-btn" onclick="toggleGlobalSearch()" title="search" class="cbtn mu-ripple">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;scale: 1.1;">
-            <path id="tsearch-pL"/>
-            <path id="tsearch-pR"/>
-          </svg>
-        </button>
-      </div>`;
-  }
-  _tsearchSyncOverlay(v, isOpen);
-  if (isOpen) _tsearchOpen();
+  _tsearchSyncOverlay(v, S.globalSearchOpen);
 }
 
 function _tsearchSyncOverlay(v, isOpen) {
-  const inp = document.getElementById('tsearch-input');
+  const btn  = document.getElementById('tsearch-btn');
+  const inp  = document.getElementById('tsearch-input');
   const area = document.getElementById('topbar-title-area');
-  if (!inp || !area) return;
-  // set placeholder from current view
+  if (!btn || !inp || !area) return;
   inp.placeholder = _searchPlaceholder(v);
   inp.value = S.globalSearch || '';
-  if (isOpen) {
-    area.classList.add('search-open');
-  } else {
-    area.classList.remove('search-open');
-  }
-}
-
-function _tsearchOpen() {
-  const btn = document.getElementById('tsearch-btn');
-  const area = document.getElementById('topbar-title-area');
-  const inp  = document.getElementById('tsearch-input');
-  if (btn)  { btn.classList.add('open'); btn.title = 'close search'; }
-  if (area) area.classList.add('search-open');
-  setTimeout(() => inp?.focus(), 280);
-}
-
-function _tsearchClose() {
-  const btn = document.getElementById('tsearch-btn');
-  const area = document.getElementById('topbar-title-area');
-  const inp  = document.getElementById('tsearch-input');
-  if (btn)  { btn.classList.remove('open'); btn.title = 'search'; }
-  if (area) area.classList.remove('search-open');
-  inp?.blur();
+  area.classList.toggle('search-open', isOpen);
+  btn.classList.toggle('open', isOpen);
+  btn.title = isOpen ? 'close search' : 'search';
+  if (isOpen) inp.focus();
+  else inp.blur();
 }
 
 function _searchPlaceholder(v) {
@@ -16130,18 +16100,12 @@ function toggleGlobalSearch(forceClose) {
     S.globalSearch = '';
     S.libSearch = '';
     clearTimeout(_searchDebounceT);
-    _tsearchClose();
-    // clear the input value visually and return focus to body so kbd shortcuts work
-    const inp = document.getElementById('tsearch-input');
-    if (inp) { inp.value = ''; inp.blur(); }
+    _tsearchSyncOverlay(S.view, false);
     document.body.focus();
     _applyGlobalSearch();
   } else {
     S.globalSearchOpen = true;
-    // update placeholder in case view changed since last open
-    const inp = document.getElementById('tsearch-input');
-    if (inp) inp.placeholder = _searchPlaceholder(S.view);
-    _tsearchOpen();
+    _tsearchSyncOverlay(S.view, true);
   }
 }
 
@@ -26553,7 +26517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             openSettingsPopupSearch();
           } else {
             if (!S.globalSearchOpen) toggleGlobalSearch();
-            setTimeout(() => document.getElementById('tsearch-input')?.focus(), 290);
+            document.getElementById('tsearch-input')?.focus();
           }
         }
         break;
