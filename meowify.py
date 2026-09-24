@@ -9426,9 +9426,10 @@ svg .left-ear, svg .right-ear{
   overflow:hidden;background:var(--color-surface);
 }
 .topbar{
-  display:flex;align-items:center;gap:12px;
-  padding:6px 24px 4px;
+  display:flex;align-items:center;gap:6px;
+  padding:6px 12px 4px 8px;
   flex-shrink:0;
+  color:color-mix(in srgb, var(--color-on-primary-container) 30%, #ffffff 70%);
   background:var(--color-surface-container-low);
   border-bottom:1px solid var(--color-outline-variant);
   box-shadow:0 2px 16px rgba(0,0,0,.14);
@@ -9445,7 +9446,6 @@ svg .left-ear, svg .right-ear{
 .topbar-title{
   font:var(--type-title-large);font-variation-settings:var(--fv-title);
   font-size:19px;
-  color:var(--color-on-surface);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   position:relative;z-index:1;
   transition:opacity .18s cubic-bezier(.4,0,.2,1), transform .22s cubic-bezier(.4,0,.2,1);
@@ -9474,7 +9474,6 @@ svg .left-ear, svg .right-ear{
   background:none;border:none;outline:none;padding:0;margin:0;
   font:var(--type-title-large);font-variation-settings:var(--fv-title);
   font-size:19px;
-  color:var(--color-on-surface);
   opacity:0;
   pointer-events:none;
   transition:opacity .18s .06s cubic-bezier(.4,0,.2,1);
@@ -10197,7 +10196,7 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
 .p-center{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 8px}
 .p-ctrls{display:flex;align-items:center;gap:4px}
 .cbtn{
-  width:34px;height:34px;border-radius:var(--radius-full);
+  width:32px;height:32px;border-radius:var(--radius-full);
   display:flex;align-items:center;justify-content:center;
   color:var(--color-on-surface-variant);font-size:16px;
   transition:color var(--dur-2),background var(--dur-2);
@@ -11137,8 +11136,8 @@ body.design-glassy .list-header.pinned::before{
 #tsearch-btn.open #tsearch-pL{d:path("M5.5 5.5 Q12 12 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5 Q18.5 18.5 18.5 18.5");transform:translate(0px,0px)}
 #tsearch-btn.open #tsearch-pR{d:path("M18.5 5.5 Q12 12 5.5 18.5")}
 #tsearch-pL{transition:d .1s cubic-bezier(0,1,0,1),transform .4s cubic-bezier(.4,1.8,.6,1)}
-#tsearch-pR{transition:d .5s cubic-bezier(.25,1.4,.4,1)}
-#tsearch-btn.open #tsearch-pL{transition:d .5s cubic-bezier(0,1,0,1),transform .4s cubic-bezier(.4,1.8,.6,1)}
+#tsearch-pR{transition:d .5s cubic-bezier(.1,1.4,.3,1)}
+#tsearch-btn.open #tsearch-pL{transition:d .5s cubic-bezier(.3,1.25,0,1),transform .4s cubic-bezier(.4,1.8,.6,1)}
 
 #dl-panel-btn path, #dl-panel-btn polyline { transition: .4s cubic-bezier(.3,2,.4,1) }
 #dl-panel-btn.active path { d: path("M3,15 Q4,22 12,22 Q20,22 21,15") }
@@ -11382,12 +11381,12 @@ body.design-glassy .list-header.pinned::before{
       <div class="topbar-acts" id="tacts"></div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:4px">
         <div id="topbar-dl-wrap" style="position:relative">
-          <button id="dl-panel-btn" class="cbtn mu-ripple" title="downloads" style="position:relative;width:34px;height:34px" onclick="toggleDlPanel()">
+          <button id="dl-panel-btn" class="cbtn mu-ripple" title="downloads" style="position:relative" onclick="toggleDlPanel()">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><line x1="12" y1="3" x2="12" y2="14"/><polyline points="8,10 12,15 16,10"/><path d="M4,17 Q4,21 12,21 Q20,21 20,17" fill="none" id="dl-btn-basin"/></svg>
             <span id="dl-badge" style="display:none;position:absolute;top:3px;right:3px;min-width:14px;height:14px;border-radius:7px;background:var(--color-primary);color:var(--color-on-primary);font-size:9px;font-weight:600;align-items:center;justify-content:center;padding:0 3px;line-height:1;pointer-events:none"></span>
           </button>
         </div>
-        <button id="topbar-cfg-btn" class="cbtn mu-ripple" title="settings" style="width:34px;height:34px" onclick="openSettingsPopup()">
+        <button id="topbar-cfg-btn" class="cbtn mu-ripple" title="settings" onclick="openSettingsPopup()">
           <svg viewBox="0 0 24 24" width="17" height="17">
             <defs>
               <mask id="topbar-gear-mask">
@@ -16075,7 +16074,7 @@ function renderTopbarSearch(v) {
     wrap.innerHTML = `
       <div id="tsearch-wrap">
         <button id="tsearch-btn" onclick="toggleGlobalSearch()" title="search" class="cbtn mu-ripple">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;scale: 1.1;">
             <path id="tsearch-pL"/>
             <path id="tsearch-pR"/>
           </svg>
