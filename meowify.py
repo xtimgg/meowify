@@ -9429,7 +9429,8 @@ svg .left-ear, svg .right-ear{
   display:flex;align-items:center;gap:6px;
   padding:6px 12px 4px 8px;
   flex-shrink:0;
-  color:color-mix(in srgb, var(--color-on-primary-container) 50%, #ffffff 50%);
+  color:color-mix(in srgb, var(--color-on-primary-container) 30%, #ffffff 70%);
+  font-weight:420;
   background:var(--color-surface-container-low);
   border-bottom:1px solid var(--color-outline-variant);
   box-shadow:0 2px 16px rgba(0,0,0,.14);
