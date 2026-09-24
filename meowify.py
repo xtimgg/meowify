@@ -11360,6 +11360,7 @@ body.design-glassy .list-header.pinned::before{
         <div class="topbar-search-overlay" id="topbar-search-overlay" aria-hidden="true">
           <input id="tsearch-input" type="text"
             autocomplete="off" spellcheck="false"
+            data-ripple-disabled="true"
             oninput="onGlobalSearch(this.value)"
             onkeydown="if(event.key==='Escape')toggleGlobalSearch(true)">
         </div>
