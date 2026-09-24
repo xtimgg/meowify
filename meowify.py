@@ -9429,7 +9429,7 @@ svg .left-ear, svg .right-ear{
   display:flex;align-items:center;gap:6px;
   padding:6px 12px 4px 8px;
   flex-shrink:0;
-  color:color-mix(in srgb, var(--color-on-primary-container) 30%, #ffffff 70%);
+  color:color-mix(in srgb, var(--color-on-primary-container) 50%, #ffffff 50%);
   background:var(--color-surface-container-low);
   border-bottom:1px solid var(--color-outline-variant);
   box-shadow:0 2px 16px rgba(0,0,0,.14);
@@ -9459,16 +9459,6 @@ svg .left-ear, svg .right-ear{
   pointer-events:none;
   overflow:hidden;
 }
-.tsearch-prefix{
-  font:var(--type-title-large);font-variation-settings:var(--fv-title);
-  font-size:19px;
-  color:var(--color-on-surface-variant);
-  white-space:nowrap;flex-shrink:0;
-  opacity:0;
-  transform:translateX(-8px);
-  transition:opacity .22s cubic-bezier(.4,0,.2,1), transform .24s cubic-bezier(.34,1.4,.64,1);
-  will-change:opacity,transform;
-}
 #tsearch-input{
   flex:1;min-width:0;
   background:none;border:none;outline:none;padding:0;margin:0;
@@ -9476,7 +9466,7 @@ svg .left-ear, svg .right-ear{
   font-size:19px;
   opacity:0;
   pointer-events:none;
-  transition:opacity .18s .06s cubic-bezier(.4,0,.2,1);
+  transition:opacity .18s cubic-bezier(.4,0,.2,1);
   will-change:opacity;
   caret-color:var(--color-primary);
 }
@@ -9487,10 +9477,6 @@ svg .left-ear, svg .right-ear{
 }
 .topbar-title-area.search-open .topbar-search-overlay{
   pointer-events:all;
-}
-.topbar-title-area.search-open .tsearch-prefix{
-  opacity:1;
-  transform:translateX(0);
 }
 .topbar-title-area.search-open #tsearch-input{
   opacity:1;
@@ -10207,7 +10193,7 @@ body.design-glassy .cover-lightbox-zoom-bar span{color:rgba(255,255,255,.6);}
 }
 @media (hover: hover) {.cbtn:hover{background:color-mix(in oklch,var(--color-on-surface) 10%,transparent)}}
 @media (hover: hover) {.cbtn:hover{color:var(--color-on-surface)}}
-.topbar .cbtn{color:color-mix(in srgb, var(--color-on-primary-container) 30%, #ffffff 70%)}
+.topbar .cbtn{color:color-mix(in srgb, var(--color-on-primary-container) 50%, #ffffff 50%)}
 .cbtn.active{color:var(--color-primary) !important;background:color-mix(in oklch,var(--color-primary) 12%,transparent)}
 @media (hover: hover) {.cbtn.active:hover{background:color-mix(in oklch,var(--color-primary) 20%,transparent)!important}}
 #blyrics-sync .clock-minute { transition: transform .6s cubic-bezier(.5,1.25,.4,1); transform-origin: 10px 10px; }
@@ -11372,7 +11358,6 @@ body.design-glassy .list-header.pinned::before{
       <div class="topbar-title-area" id="topbar-title-area">
         <div class="topbar-title" id="vtitle">library</div>
         <div class="topbar-search-overlay" id="topbar-search-overlay" aria-hidden="true">
-          <span class="tsearch-prefix" id="tsearch-prefix">search: </span>
           <input id="tsearch-input" type="text"
             autocomplete="off" spellcheck="false"
             oninput="onGlobalSearch(this.value)"
@@ -16088,9 +16073,8 @@ function renderTopbarSearch(v) {
 
 function _tsearchSyncOverlay(v, isOpen) {
   const inp = document.getElementById('tsearch-input');
-  const prefix = document.getElementById('tsearch-prefix');
   const area = document.getElementById('topbar-title-area');
-  if (!inp || !prefix || !area) return;
+  if (!inp || !area) return;
   // set placeholder from current view
   inp.placeholder = _searchPlaceholder(v);
   inp.value = S.globalSearch || '';
@@ -16120,23 +16104,22 @@ function _tsearchClose() {
 }
 
 function _searchPlaceholder(v) {
-  // shown inside the input — prefix "search: " is rendered separately
-  if (v === 'settings') return 'settings\u2026';
-  if (v === 'stats')    return 'stats\u2026';
+  if (v === 'settings') return 'search: settings\u2026';
+  if (v === 'stats')    return 'search: stats\u2026';
   if (v === 'playlist') {
     const pl = S.playlists?.find(p => p.id === S.activePid);
-    return (pl ? pl.name : 'playlist') + '\u2026';
+    return 'search: ' + (pl ? pl.name : 'playlist') + '\u2026';
   }
   if (v === 'album') {
     const alb = S.albums?.find(a => a.id === S.activeAid);
-    return (alb ? alb.title : 'album') + '\u2026';
+    return 'search: ' + (alb ? alb.title : 'album') + '\u2026';
   }
   if (v === 'artist') {
     const vtxt = document.getElementById('vtitle')?.textContent;
-    return (vtxt && vtxt !== 'artist' ? vtxt : 'artist') + '\u2026';
+    return 'search: ' + (vtxt && vtxt !== 'artist' ? vtxt : 'artist') + '\u2026';
   }
-  if (v === 'add') return 'add music\u2026';
-  return 'library\u2026';
+  if (v === 'add') return 'search: add music\u2026';
+  return 'search: library\u2026';
 }
 
 function toggleGlobalSearch(forceClose) {
