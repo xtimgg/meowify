@@ -9445,7 +9445,7 @@ svg .left-ear, svg .right-ear{
 }
 .topbar-title{
   font:var(--type-title-large);font-variation-settings:var(--fv-title);
-  font-size:19px;
+  font-size:19px;font-weight:420;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   position:relative;z-index:1;
   transition:opacity .18s cubic-bezier(.4,0,.2,1), transform .22s cubic-bezier(.4,0,.2,1);
