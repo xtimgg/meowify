@@ -9470,6 +9470,12 @@ svg .left-ear, svg .right-ear{
   will-change:opacity;
   caret-color:var(--color-primary);
 }
+#tsearch-input,
+[data-mu-design] #tsearch-input,
+[data-mu-design] #tsearch-input:focus{
+  background:none!important;border:none!important;outline:none!important;
+  box-shadow:none!important;
+}
 /* active search state */
 .topbar-title-area.search-open .topbar-title{
   opacity:0;
