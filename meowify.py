@@ -143,6 +143,8 @@ _HOME   = Path(os.environ['MEOWIFY_DATA_DIR']) if 'MEOWIFY_DATA_DIR' in os.envir
 _SCFG   = _HOME / "settings.json"
 _DEFS   = {"data_dir": str(_HOME), "gapless": True, "format": "mp3", "quality": "0", "crossfade": 0, "genius_token": "", "auto_genius": True, "volume": 0.8, "volume_norm": False, "target_lufs": -14, "theme_hue": 145, "theme_sat": 50, "theme_bri": 1.0, "ddg_genius": True, "prev_restarts": True, "dl_speed_single": "fast", "dl_speed_batch": "balanced", "spotify_local_dir": "", "auto_align_lyrics": False, "ui_design": "material", "dropbox_refresh_token": "", "dropbox_sync_enabled": False, "dropbox_last_sync": 0, "device_id": "", "device_name": "", "sync_library": True, "sync_settings": True, "enhance_audio": False, "immersive_audio": False, "music_video": False, "music_video_autoplay": False, "transition_albums": False, "gapless_transition_only": False, "shuffle_transition_only": False, "cover_art_bleed": False, "cover_art_hue_sync": False, "audio_scrub": False, "eq": [], "win_use_webview": True}
 
+_DEFS.update({"dbx_push_mode": "missing_on_peer", "dbx_quota_cap_pct": 80})
+
 def load_cfg():
     _HOME.mkdir(parents=True, exist_ok=True)
     if _SCFG.exists():
@@ -619,6 +621,19 @@ def init_db():
             c.execute("ALTER TABLE songs ADD COLUMN mv_url TEXT")
         if 'release_date' not in _mv_cols:
             c.execute("ALTER TABLE songs ADD COLUMN release_date TEXT")
+        _av_new = False
+        for _avc in ('audio_available', 'cover_available'):
+            if _avc not in _mv_cols:
+                c.execute(f"ALTER TABLE songs ADD COLUMN {_avc} INTEGER DEFAULT 0")
+                _av_new = True
+        if _av_new:
+            for _sid, _fp, _cp in c.execute("SELECT id, file_path, cover_path FROM songs").fetchall():
+                try:
+                    _a  = 1 if _fp and Path(_fp).exists() else 0
+                    _cv = 1 if _cp and Path(_cp).exists() else 0
+                except Exception:
+                    _a = _cv = 0
+                c.execute("UPDATE songs SET audio_available=?, cover_available=? WHERE id=?", (_a, _cv, _sid))
 
         # song_credits table - freeform genius credits (producer, writer, etc)
         c.executescript("""
@@ -5771,7 +5786,19 @@ def _dbx():
         _log_dbx.warning(f'[dbx] client init failed: {e}')
         return None
 
+class DropboxQuotaError(Exception):
+    pass
+
 def _dbx_upload(dbx, local_path, remote_path):
+    try:
+        return _dbx_upload_raw(dbx, local_path, remote_path)
+    except Exception as e:
+        _s = str(e).lower()
+        if 'insufficient_space' in _s or 'storage_limit' in _s or 'over_quota' in _s:
+            raise DropboxQuotaError(str(e)) from e
+        raise
+
+def _dbx_upload_raw(dbx, local_path, remote_path):
     import dropbox
     local_path = Path(local_path)
     if not local_path.exists():
@@ -5895,6 +5922,10 @@ def _dbx_push_manifest(dbx, extra_song_sync_ids=None, extra_cover_names=None):
         with db() as c:
             rows = c.execute('SELECT sync_id FROM songs WHERE sync_id IS NOT NULL').fetchall()
         song_sync_ids = list({r[0] for r in rows})
+        _dbx_reconcile_availability()
+        with db() as c:
+            _arows = c.execute('SELECT sync_id FROM songs WHERE sync_id IS NOT NULL AND audio_available=1').fetchall()
+        audio_sync_ids = list({r[0] for r in _arows})
         if extra_song_sync_ids:
             song_sync_ids = list(set(song_sync_ids) | set(extra_song_sync_ids))
         cover_names = [f.name for f in cdir().iterdir() if f.is_file()] if cdir().exists() else []
@@ -5906,6 +5937,7 @@ def _dbx_push_manifest(dbx, extra_song_sync_ids=None, extra_cover_names=None):
             'device_name':   device_name,
             'last_seen':     int(_time.time()),
             'song_sync_ids': song_sync_ids,
+            'audio_sync_ids': audio_sync_ids,
             'cover_names':   cover_names,
             'db_hash':       _dropbox_hash(local_db) if Path(local_db).exists() else _dropbox_hash(b''),
         }
@@ -5987,8 +6019,7 @@ def _dbx_validate_paths(dbx=None):
                         repaired['songs_file'] += 1
                         _log_dbx.info(f'[dbx validate] song {sid}: repaired file_path → {fixed}')
                     else:
-                        _log_dbx.warning(f'[dbx validate] song {sid}: file_path unrecoverable: {fp}')
-                        stale['songs_file'] += 1
+                        _log_dbx.debug(f'[dbx validate] song {sid}: audio not on this device: {fp}')
                         # file_path is NOT NULL in schema - leave it; playback will
                         # surface the failure naturally and a future sync may fix it
                         # once the peer re-uploads under this name.
@@ -5998,9 +6029,7 @@ def _dbx_validate_paths(dbx=None):
                         c.execute("UPDATE songs SET cover_path=? WHERE id=?", (fixed, sid))
                         repaired['songs_cover'] += 1
                     else:
-                        _log_dbx.info(f'[dbx validate] song {sid}: clearing stale cover_path: {cp}')
-                        c.execute("UPDATE songs SET cover_path=NULL WHERE id=?", (sid,))
-                        stale['songs_cover'] += 1
+                        _log_dbx.debug(f'[dbx validate] song {sid}: cover not on this device yet, keeping cover_path: {cp}')
             try:
                 arows = c.execute("SELECT id, cover_path FROM albums").fetchall()
                 for aid, cp in arows:
@@ -6057,6 +6086,117 @@ def _dbx_peer_cover_names(dbx, own_device_id, peer_manifests=None):
     if peer_manifests is None:
         peer_manifests = _dbx_read_peer_manifests(dbx, own_device_id)
     return {n for m in peer_manifests for n in m.get('cover_names', [])}
+
+_COVER_RESERVE = 64 * 1024 * 1024
+
+def _dbx_reconcile_availability():
+    try:
+        with db() as c:
+            rows = c.execute(
+                "SELECT id, file_path, cover_path, audio_available, cover_available FROM songs").fetchall()
+            for sid, fp, cp, aa, ca in rows:
+                na = 1 if fp and Path(fp).exists() else 0
+                nc = 1 if cp and Path(cp).exists() else 0
+                if na != (aa or 0) or nc != (ca or 0):
+                    c.execute("UPDATE songs SET audio_available=?, cover_available=? WHERE id=?",
+                              (na, nc, sid))
+    except Exception as e:
+        _log_dbx.warning(f'[dbx reconcile] failed: {e}')
+
+def _dbx_peer_audio_sets(peer_manifests):
+    sets, legacy = [], False
+    for m in peer_manifests:
+        ids = m.get('audio_sync_ids')
+        if ids is None:
+            legacy = True
+            ids = m.get('song_sync_ids', [])
+        sets.append(set(ids))
+    return sets, legacy
+
+def _dbx_peer_cover_sets(peer_manifests):
+    return [set(m.get('cover_names', [])) for m in peer_manifests]
+
+def _dbx_needs_push(key, peer_sets, mode=None):
+    mode = mode or CFG.get('dbx_push_mode', 'missing_on_peer')
+    if not peer_sets:
+        return False
+    return any(key not in s for s in peer_sets)
+
+def _dbx_space_budget(dbx):
+    try:
+        cap = max(1, min(100, int(CFG.get('dbx_quota_cap_pct', 80))))
+    except Exception:
+        cap = 80
+    try:
+        u = dbx.users_get_space_usage()
+        a = u.allocation
+        if a.is_individual():
+            total = a.get_individual().allocated
+        elif a.is_team():
+            t = a.get_team()
+            total = getattr(t, 'user_within_team_space_allocated', 0) or t.allocated
+        else:
+            total = 0
+        if not total:
+            return None, cap
+        return int(total * cap / 100) - u.used, cap
+    except Exception as e:
+        _log_dbx.warning(f'[dbx space] usage check failed: {e}')
+        return None, cap
+
+def _dbx_cleanup_delivered(dbx, peer_manifests):
+    import dropbox as _dbxmod
+    if not peer_manifests:
+        return 0, 0
+    peer_audio, legacy = _dbx_peer_audio_sets(peer_manifests)
+    if legacy:
+        return 0, 0
+    peer_covers = _dbx_peer_cover_sets(peer_manifests)
+
+    def _list(folder):
+        out = {}
+        try:
+            res = dbx.files_list_folder(folder)
+            while True:
+                for e in res.entries:
+                    if isinstance(e, _dbxmod.files.FileMetadata):
+                        out[e.name] = e.size
+                if not res.has_more:
+                    break
+                res = dbx.files_list_folder_continue(res.cursor)
+        except Exception:
+            pass
+        return out
+
+    deleted = freed = 0
+    try:
+        with db() as c:
+            rows = c.execute(
+                "SELECT file_path, sync_id FROM songs WHERE sync_id IS NOT NULL AND audio_available=1").fetchall()
+        have_audio = {Path(fp).name: sid for fp, sid in rows if fp}
+        for name, size in _list('/meowify/music').items():
+            sid = have_audio.get(name)
+            if sid and all(sid in s for s in peer_audio):
+                try:
+                    dbx.files_delete_v2(f'/meowify/music/{name}')
+                    deleted += 1
+                    freed += size or 0
+                except Exception as e:
+                    _log_dbx.warning(f'[dbx cleanup] delete {name}: {e}')
+        local_covers = {f.name for f in cdir().iterdir() if f.is_file()} if cdir().exists() else set()
+        for name, size in _list('/meowify/covers').items():
+            if name in local_covers and all(name in s for s in peer_covers):
+                try:
+                    dbx.files_delete_v2(f'/meowify/covers/{name}')
+                    deleted += 1
+                    freed += size or 0
+                except Exception as e:
+                    _log_dbx.warning(f'[dbx cleanup] delete cover {name}: {e}')
+    except Exception as e:
+        _log_dbx.warning(f'[dbx cleanup] failed: {e}')
+    if deleted:
+        _log_dbx.info(f'[dbx cleanup] removed {deleted} delivered files, freed {freed} bytes')
+    return deleted, freed
 
 def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
                  sync_settings=True, status_cb=None):
@@ -6166,19 +6306,33 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
     except Exception as e:
         results['errors'].append(f'manifest read: {e}')
 
+    try:
+        _dbx_reconcile_availability()
+    except Exception as e:
+        results['errors'].append(f'availability: {e}')
+    _peer_audio, _legacy_peer = _dbx_peer_audio_sets(peer_manifests)
+    _peer_covers = _dbx_peer_cover_sets(peer_manifests)
+    _have_peers = bool(peer_manifests)
+    _budget, _cap_pct = None, 80
+
     # ── 4. music files ────────────────────────────────────────────────────────
     pushed_song_sync_ids = []
     if pull_songs or push_songs:
         try:
             _status('syncing music files...')
+            if _have_peers:
+                _dbx_cleanup_delivered(dbx, peer_manifests)
+            _budget, _cap_pct = _dbx_space_budget(dbx)
             import dropbox as _dbxmod
             try:
                 remote_files = {}
+                remote_sizes = {}
                 res = dbx.files_list_folder('/meowify/music')
                 while True:
                     for entry in res.entries:
                         if isinstance(entry, _dbxmod.files.FileMetadata):
                             remote_files[entry.name] = entry.content_hash
+                            remote_sizes[entry.name] = entry.size
                     if not res.has_more:
                         break
                     res = dbx.files_list_folder_continue(res.cursor)
@@ -6199,14 +6353,34 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
             # checklist UI gets an accurate n/x total instead of the full
             # remote/local listing size which would include already-synced items
             _push_pending = []
+            _skipped_cap = 0
+            _music_budget = None if _budget is None else max(0, _budget - _COVER_RESERVE)
+            with db() as c:
+                _added = {Path(r[0]).name: (r[1] or 0) for r in c.execute(
+                    "SELECT file_path, added_at FROM songs WHERE file_path IS NOT NULL AND file_path != ''").fetchall()}
+            _cands = []
             for name, fpath in local_songs.items():
                 sync_id = fname_to_syncid.get(name)
-                if not push_songs and sync_id and sync_id in peer_song_ids:
+                if not push_songs and not (sync_id and _dbx_needs_push(sync_id, _peer_audio)):
                     continue
-                local_hash = _dropbox_hash(fpath)
-                if remote_files.get(name) == local_hash:
+                try:
+                    _sz = fpath.stat().st_size
+                except OSError:
                     continue
+                if name in remote_files and remote_sizes.get(name) == _sz:
+                    continue
+                _cands.append((_added.get(name, 0), name, fpath, sync_id, _sz))
+            _cands.sort(key=lambda t: t[0], reverse=True)
+            for _ad, name, fpath, sync_id, _sz in _cands:
+                if _music_budget is not None:
+                    if _sz > _music_budget:
+                        _skipped_cap += 1
+                        continue
+                    _music_budget -= _sz
                 _push_pending.append((name, fpath, sync_id))
+            if _skipped_cap:
+                results['paused'] = f'{_skipped_cap} songs waiting, dropbox over {_cap_pct}% cap'
+                _status(results['paused'])
 
             with db() as c:
                 _fname_to_sid = {Path(fp).name: sid for fp, sid in
@@ -6214,25 +6388,31 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
                                 if pull_songs else {}
             _pull_pending = []
             if pull_songs:
+                with db() as c:
+                    _want_names = {Path(r[0]).name for r in c.execute(
+                        "SELECT file_path FROM songs WHERE file_path IS NOT NULL AND file_path != '' AND audio_available=0").fetchall()}
                 for name, rhash in remote_files.items():
-                    local_path = mdir() / name
-                    if local_path.exists():
-                        try:
-                            md = dbx.files_get_metadata(f'/meowify/music/{name}')
-                            remote_size = getattr(md, 'size', None)
-                        except Exception:
-                            remote_size = None
-                        if remote_size is not None and local_path.stat().st_size == remote_size:
-                            continue
-                        if _dropbox_hash(local_path) == rhash:
-                            continue
-                    _pull_pending.append((name, rhash))
+                    if name in _want_names and not (mdir() / name).exists():
+                        _pull_pending.append((name, rhash))
 
             _dbx_prog_init('tracks', [n for n, _, _ in _push_pending] + [n for n, _ in _pull_pending])
 
+            _push_fail = 0
             for name, fpath, sync_id in _push_pending:
                 _status(f'uploading {name}...')
-                _dbx_upload(dbx, fpath, f'/meowify/music/{name}')
+                try:
+                    _dbx_upload(dbx, fpath, f'/meowify/music/{name}')
+                except DropboxQuotaError as _qe:
+                    results['paused'] = 'dropbox storage full'
+                    results['errors'].append(f'upload stopped: {_qe}')
+                    break
+                except Exception as _ue:
+                    _push_fail += 1
+                    results['errors'].append(f'upload {name}: {_ue}')
+                    _dbx_prog_tick('tracks', name)
+                    if _push_fail >= 3:
+                        break
+                    continue
                 results['pushed'].append(name)
                 if sync_id:
                     pushed_song_sync_ids.append(sync_id)
@@ -6286,28 +6466,46 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
 
             local_covers = {f.name: f for f in cdir().iterdir() if f.is_file()} if cdir().exists() else {}
 
+            _ref = set()
+            with db() as c:
+                for _q in ("SELECT cover_path FROM songs",
+                           "SELECT cover_path FROM albums",
+                           "SELECT image_path FROM artists"):
+                    try:
+                        _ref |= {Path(r[0]).name for r in c.execute(_q).fetchall() if r[0]}
+                    except Exception:
+                        pass
             _cover_push_pending = []
-            if push_songs:
+            _cb = _budget
+            if _have_peers or push_songs:
                 for name, fpath in local_covers.items():
+                    if not push_songs and not (name in _ref and _dbx_needs_push(name, _peer_covers)):
+                        continue
                     if remote_covers.get(name) == _dropbox_hash(fpath):
                         continue  # already on dropbox and identical, skip
-                    # note: peer_cover_set means peer has it locally, NOT that it's on
-                    # dropbox — so we can't skip upload based on it; just push it
+                    if _cb is not None:
+                        _csz = fpath.stat().st_size
+                        if _csz > _cb:
+                            continue
+                        _cb -= _csz
                     _cover_push_pending.append((name, fpath))
 
             _cover_pull_pending = []
             if pull_songs:
                 for name, rhash in remote_covers.items():
                     local_path = cdir() / name
-                    if local_path.exists():
-                        if _dropbox_hash(local_path) == rhash:
-                            continue  # identical, skip
-                    _cover_pull_pending.append((name, local_path))
+                    if name in _ref and not local_path.exists():
+                        _cover_pull_pending.append((name, local_path))
 
             _dbx_prog_init('covers', [n for n, _ in _cover_push_pending] + [n for n, _ in _cover_pull_pending])
 
             for name, fpath in _cover_push_pending:
-                _dbx_upload(dbx, fpath, f'/meowify/covers/{name}')
+                try:
+                    _dbx_upload(dbx, fpath, f'/meowify/covers/{name}')
+                except DropboxQuotaError as _qe:
+                    results['paused'] = 'dropbox storage full'
+                    results['errors'].append(f'cover upload stopped: {_qe}')
+                    break
                 results['pushed'].append(f'cover:{name}')
                 pushed_cover_names.append(name)
                 _dbx_prog_tick('covers', name)
@@ -6322,7 +6520,10 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
     # ── 5b. validate paths now that file sync has actually run ───────────────
     try:
         _status('checking files...')
-        stale = _dbx_validate_paths(dbx)
+        stale = _dbx_validate_paths()
+        _dbx_reconcile_availability()
+        if results['pulled'] and _have_peers:
+            _dbx_cleanup_delivered(dbx, peer_manifests)
         if any(stale[k] for k in stale if k != 'repaired') or any(stale['repaired'].values()):
             results['stale_cleared'] = stale
     except Exception as e:
@@ -6511,6 +6712,10 @@ def _dbx_merge_db(local_path, remote_path):
                     _keep = [i for i, col in enumerate(cols) if col in _local_cols]
                     _dropped = [cols[i] for i in range(len(cols)) if i not in _keep]
                     _log_dbx.info(f'[dbx merge] dropping unknown cols from {tbl}: {_dropped}')
+                    cols = [cols[i] for i in _keep]
+                    rows = [tuple(row[i] for i in _keep) for row in rows]
+                if tbl == 'songs' and ({'audio_available', 'cover_available'} & set(cols)):
+                    _keep = [i for i, col in enumerate(cols) if col not in ('audio_available', 'cover_available')]
                     cols = [cols[i] for i in _keep]
                     rows = [tuple(row[i] for i in _keep) for row in rows]
                 placeholders = ','.join(['?'] * len(cols))
@@ -13898,9 +14103,9 @@ const S = {
   view: 'library', activePid: null, activeAid: null, activeArtid: null,
   queue: [], qi: -1,
   isPlaying: false, shuffle: false, repeat: 'none',
-  // shuffleMode: 'random' | 'chaos' | 'flow' | 'block'
+  // shuffleMode: 'random' | 'chaos' | 'flow' | 'intact'
   // 'flow'  = continue-album mode (play songs that follow in the album)
-  // 'block' = dont-shuffle-albums mode (keep albums grouped as one block)
+  // 'intact' = dont-shuffle-albums mode (keep albums grouped as one block)
   shuffleMode: 'random',
   smartShuffle: false,
   // chaos state
@@ -14240,7 +14445,7 @@ function buildQueue(songs, startIdx, source) {
         const adjusted = _applyFlowMode(tentative, _taIds);
         S.queue = adjusted;
         S.qi = 0;
-      } else if (S.shuffleMode === 'block') {
+      } else if (S.shuffleMode === 'intact') {
         // group albums as blocks, keep start song first
         // _applyBlockMode handles its own unit-level shuffle internally
         // shuffle_transition_only: only group songs from transition albums, treat others as singles
@@ -14965,7 +15170,7 @@ function _shuffleRemaining() {
     const adjusted = _applyFlowMode([S.cur || S.queue[S.qi], ...shuffled], _taIds);
     S.queue = [...before.slice(0, -1), ...adjusted];
     S.qi = curId ? Math.max(0, S.queue.findIndex(s => s.id === curId)) : 0;
-  } else if (S.shuffleMode === 'block') {
+  } else if (S.shuffleMode === 'intact') {
     const _taIds = (CFG.transition_albums && CFG.shuffle_transition_only)
       ? new Set(S.albums.filter(a=>a.transition_album).map(a=>a.id))
       : null;
@@ -15008,7 +15213,7 @@ function showShuffleCtx(e) {
     { icon: check(mode === 'random'), label: 'random',    fn: () => setShuffleMode('random') },
     { icon: check(mode === 'chaos'),  label: 'chaos',     fn: () => setShuffleMode('chaos')  },
     { icon: check(mode === 'flow'),   label: 'flow',      fn: () => setShuffleMode('flow')   },
-    { icon: check(mode === 'block'),  label: 'block',     fn: () => setShuffleMode('block')  },
+    { icon: check(mode === 'intact'),  label: 'intact',     fn: () => setShuffleMode('intact')  },
     { sep: true },
     { icon: check(smart), label: 'smart shuffle', fn: () => setSmartShuffle(!smart) },
   ]);
@@ -25655,7 +25860,7 @@ function renderSettings() {
             { v: 'random', label: 'random',  desc: 'every song once, randomized order' },
             { v: 'chaos',  label: 'chaos',   desc: 'fully random, songs can repeat, queue disabled' },
             { v: 'flow',   label: 'flow',    desc: 'follows album track order when a song plays' },
-            { v: 'block',  label: 'block',   desc: 'albums shuffled as groups, not split up' },
+            { v: 'intact',  label: 'intact',   desc: 'albums shuffled as groups, not split up' },
           ];
           const modeButtons = MODES.map(m =>
             `<button style="padding:5px 12px;font:var(--type-label-medium);font-variation-settings:var(--fv-label);border-radius:var(--radius-sm);border:1.5px solid ${smode===m.v?'var(--color-primary)':'var(--color-outline-variant)'};background:${smode===m.v?'var(--color-primary)':'transparent'};color:${smode===m.v?'var(--color-on-primary)':'var(--color-on-surface-variant)'};cursor:pointer;transition:all .15s ease"
@@ -25686,7 +25891,7 @@ function renderSettings() {
           const ta = !!CFG.transition_albums;
           const gto = !!CFG.gapless_transition_only;
           const sto = !!CFG.shuffle_transition_only;
-          const flowBlockActive = (S.shuffleMode||'random') === 'flow' || (S.shuffleMode||'random') === 'block';
+          const flowBlockActive = (S.shuffleMode||'random') === 'flow' || (S.shuffleMode||'random') === 'intact';
           const _taSubRow = (title, sub, control) => {
             if (_sq) { const h=(title+' '+sub).toLowerCase(); if(!h.includes(_sq)) return ''; }
             return `<div class="set-row" style="${ta?'':'opacity:0.45;pointer-events:none'}">
