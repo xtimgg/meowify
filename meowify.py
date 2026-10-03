@@ -8570,6 +8570,10 @@ def api_import_backup():
                         # data_dir is the source machine's path (e.g. a windows path
                         # being imported on android) and must never be restored as-is
                         _restored_cfg['data_dir'] = str(_HOME)
+                        # device identity is per-install: never take it from the archive
+                        _cur_ident = load_cfg()
+                        for _idk in ('device_id', 'device_name'):
+                            _restored_cfg[_idk] = _cur_ident.get(_idk, '')
                         with _cfg_lock:
                             save_cfg(_restored_cfg)
                         # reload CFG immediately so ddir()/mdir()/cdir() use the
