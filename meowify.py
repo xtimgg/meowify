@@ -6471,8 +6471,8 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
             local_songs = {f.name: f for f in mdir().iterdir() if f.is_file()} if mdir().exists() else {}
 
             # auto-push: upload any local song not yet on dropbox or not yet
-            # known to any peer device. push_songs=True bypasses peer check to
-            # force re-upload (e.g. after a peer manifest was lost/reset).
+            # known to any peer device. push_songs no longer bypasses the peer
+            # check: force sync and auto sync both only push what a peer lacks.
             with db() as c:
                 rows = c.execute('SELECT file_path, sync_id FROM songs WHERE sync_id IS NOT NULL').fetchall()
             fname_to_syncid = {Path(r[0]).name: r[1] for r in rows if r[0]}
@@ -6489,7 +6489,7 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
             _cands = []
             for name, fpath in local_songs.items():
                 sync_id = fname_to_syncid.get(name)
-                if not push_songs and not (sync_id and _dbx_needs_push(sync_id, _peer_audio)):
+                if not (sync_id and _dbx_needs_push(sync_id, _peer_audio)):
                     continue
                 try:
                     _sz = fpath.stat().st_size
@@ -6605,9 +6605,9 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
                         pass
             _cover_push_pending = []
             _cb = _budget
-            if _have_peers or push_songs:
+            if _have_peers:
                 for name, fpath in local_covers.items():
-                    if not push_songs and not (name in _ref and _dbx_needs_push(name, _peer_covers)):
+                    if not (name in _ref and _dbx_needs_push(name, _peer_covers)):
                         continue
                     if remote_covers.get(name) == _dropbox_hash(fpath):
                         continue  # already on dropbox and identical, skip
