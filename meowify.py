@@ -6361,6 +6361,7 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
 
     # ── 1. pull + merge db first (fixes push-before-pull race) ───────────────
     _remote_db_hash_after_pull = None  # reused in step 2 to avoid second API call
+    _db_merge_failed = False
     if pull_db:
         try:
             _status('checking remote library...')
@@ -6372,9 +6373,13 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
                     tmp = Path(local_db).parent / 'library_remote.db'
                     if _dbx_pull_file(dbx, remote_db, tmp):
                         _backup_daily()
-                        _dbx_merge_db(local_db, tmp)
+                        _merge_ok = _dbx_merge_db(local_db, tmp)
                         tmp.unlink(missing_ok=True)
-                        results['pulled'].append('library.db')
+                        if _merge_ok is False:
+                            _db_merge_failed = True
+                            results['errors'].append('db merge failed and was rolled back; library upload skipped (see [dbx merge] in the log)')
+                        else:
+                            results['pulled'].append('library.db')
                         _remote_db_hash_after_pull = None  # merged locally, remote is now stale
         except Exception as e:
             results['errors'].append(f'db pull: {e}')
@@ -6402,7 +6407,7 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
             # reuse hash from step 1 if available (saves one API round-trip)
             known_remote = _remote_db_hash_after_pull if _remote_db_hash_after_pull is not None \
                            else _dbx_remote_hash(dbx, remote_db)
-            if local_hash_now != known_remote:
+            if local_hash_now != known_remote and not _db_merge_failed:
                 # run lightweight integrity cleanup before upload so peers don't
                 # inherit duplicate album_tracks rows or stale pref_reset storms
                 try:
@@ -6778,8 +6783,49 @@ def _dbx_pull_prefs(dbx):
             _log_dbx.info(f'[dbx prefs] pulled {list(changed.keys())} (were still at defaults locally)')
     return bool(changed)
 
+def _dbx_fix_song_artist_rows(c, cols, rows, remap):
+    """remap artist ids that were skipped because the same artist already exists
+    locally under a different id, and drop rows whose song/artist doesn't exist
+    locally (tombstoned songs etc) so they can't trip the foreign keys."""
+    if 'song_id' not in cols or 'artist_id' not in cols:
+        return rows
+    si, ai = cols.index('song_id'), cols.index('artist_id')
+    songs_ok   = {r[0] for r in c.execute('SELECT id FROM songs')}
+    artists_ok = {r[0] for r in c.execute('SELECT id FROM artists')}
+    out = []
+    for row in rows:
+        row = list(row)
+        row[ai] = remap.get(row[ai], row[ai])
+        if row[si] in songs_ok and row[ai] in artists_ok:
+            out.append(tuple(row))
+    return out
+
+_DBX_FK_PARENTS = {
+    'lyrics':         (('song_id', 'songs'),),
+    'album_tracks':   (('album_id', 'albums'),),
+    'playlist_songs': (('playlist_id', 'playlists'), ('song_id', 'songs')),
+    'play_events':    (('song_stats_id', 'song_stats'),),
+}
+
+def _dbx_drop_orphans(c, tbl, cols, rows):
+    """drop incoming rows whose parent row isn't present locally (tombstoned songs,
+    albums deleted here, ...). foreign_keys is ON during the merge, and one such row
+    would otherwise abort the whole transaction."""
+    checks = []
+    for col, parent in _DBX_FK_PARENTS.get(tbl, ()):
+        if col in cols:
+            checks.append((cols.index(col), {r[0] for r in c.execute(f'SELECT id FROM {parent}')}))
+    if not checks:
+        return rows
+    kept = [row for row in rows if all(row[i] is None or row[i] in ids for i, ids in checks)]
+    if len(kept) != len(rows):
+        _log_dbx.info(f'[dbx merge] {tbl}: skipped {len(rows) - len(kept)} rows whose parent row is not present locally')
+    return kept
+
 def _dbx_merge_db(local_path, remote_path):
+    """returns True when the merge was applied, False when it failed and was rolled back."""
     import sqlite3 as _sq
+    _merge_ok = True
     # read all rows from remote into memory first, then write to local via the
     # WAL-safe db() context manager so we don't race with flask writes
     try:
@@ -6800,7 +6846,7 @@ def _dbx_merge_db(local_path, remote_path):
         rem.close()
     except Exception as e:
         _log_dbx.warning(f'[dbx merge] read remote: {e}')
-        return
+        return False
 
     local_music_dir  = str(mdir())
     local_cover_dir  = str(cdir())
@@ -6851,6 +6897,7 @@ def _dbx_merge_db(local_path, remote_path):
         _conn.create_function('_ulower', 1, _ulower, deterministic=True)
         c = _conn
         with _conn:
+            _artist_remap = {}
             for tbl, (cols, rows) in tables_data.items():
                 # strip any columns the remote db has that don't exist in local schema
                 # (avoids hard failures when schemas diverge across devices/versions)
@@ -6870,6 +6917,8 @@ def _dbx_merge_db(local_path, remote_path):
                     rows = [tuple(row[i] for i in _keep) for row in rows]
                 placeholders = ','.join(['?'] * len(cols))
                 col_str      = ','.join(cols)
+                if tbl in _DBX_FK_PARENTS:
+                    rows = _dbx_drop_orphans(c, tbl, cols, rows)
                 if tbl == 'songs':
                     syncid_idx = cols.index('sync_id')     if 'sync_id'     in cols else None
                     modat_idx  = cols.index('modified_at') if 'modified_at' in cols else None
@@ -6980,6 +7029,11 @@ def _dbx_merge_db(local_path, remote_path):
                 elif tbl == 'artists':
                     id_idx = cols.index('id') if 'id' in cols else None
                     ip_idx = cols.index('image_path') if 'image_path' in cols else None
+                    nm_idx = cols.index('name') if 'name' in cols else None
+                    _local_by_name = {}
+                    if nm_idx is not None:
+                        for _lid, _lnm in c.execute("SELECT id, name FROM artists").fetchall():
+                            _local_by_name.setdefault(_ulower(_lnm), _lid)
                     del_rows = c.execute(
                         "SELECT target, MAX(ts) FROM sync_actions "
                         "WHERE action='artist_delete' GROUP BY target").fetchall()
@@ -6989,6 +7043,17 @@ def _dbx_merge_db(local_path, remote_path):
                         row = list(row)
                         if id_idx is not None and row[id_idx] in deleted_ts:
                             continue
+                        if nm_idx is not None and id_idx is not None:
+                            # unique index on lower(name): an artist the other device
+                            # created independently has a different id but the same name.
+                            # keep the local row and remap references instead of letting
+                            # the unique violation roll back the whole merge.
+                            _key = _ulower(row[nm_idx])
+                            _existing = _local_by_name.get(_key)
+                            if _existing is not None and _existing != row[id_idx]:
+                                _artist_remap[row[id_idx]] = _existing
+                                continue
+                            _local_by_name[_key] = row[id_idx]
                         if ip_idx is not None and row[ip_idx]:
                             row[ip_idx] = _rebase_path(row[ip_idx], local_cover_dir)
                         _batched_rows.append(row)
@@ -7071,6 +7136,8 @@ def _dbx_merge_db(local_path, remote_path):
                                 row)
                 else:
                     # play_events, song_artists — union / ignore duplicates
+                    if tbl == 'song_artists':
+                        rows = _dbx_fix_song_artist_rows(c, cols, rows, _artist_remap)
                     c.executemany(
                         f'INSERT OR IGNORE INTO {tbl} ({col_str}) VALUES ({placeholders})',
                         rows
@@ -7116,6 +7183,7 @@ def _dbx_merge_db(local_path, remote_path):
             """)
     except Exception as e:
         _log_dbx.warning(f'[dbx merge] write local: {e}')
+        _merge_ok = False
     finally:
         try:
             _conn.close()
@@ -7133,6 +7201,7 @@ def _dbx_merge_db(local_path, remote_path):
             merge_duplicate_stats(c)
     except Exception as e:
         _log_dbx.warning(f'[dbx merge] post-merge migrations err: {e}')
+    return _merge_ok
 
 # ── action log: deletions / membership / pref-resets ─────────────────────────
 # per-device append-only files on dropbox (/meowify/actions/<device_id>.jsonl)
