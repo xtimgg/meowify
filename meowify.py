@@ -143,7 +143,7 @@ _HOME   = Path(os.environ['MEOWIFY_DATA_DIR']) if 'MEOWIFY_DATA_DIR' in os.envir
 _SCFG   = _HOME / "settings.json"
 _DEFS   = {"data_dir": str(_HOME), "gapless": True, "format": "mp3", "quality": "0", "crossfade": 0, "genius_token": "", "auto_genius": True, "volume": 0.8, "volume_norm": False, "target_lufs": -14, "theme_hue": 145, "theme_sat": 50, "theme_bri": 1.0, "ddg_genius": True, "prev_restarts": True, "dl_speed_single": "fast", "dl_speed_batch": "balanced", "spotify_local_dir": "", "auto_align_lyrics": False, "ui_design": "material", "dropbox_refresh_token": "", "dropbox_sync_enabled": False, "dropbox_last_sync": 0, "device_id": "", "device_name": "", "sync_library": True, "sync_settings": True, "enhance_audio": False, "immersive_audio": False, "music_video": False, "music_video_autoplay": False, "transition_albums": False, "gapless_transition_only": False, "shuffle_transition_only": False, "cover_art_bleed": False, "cover_art_hue_sync": False, "audio_scrub": False, "eq": [], "win_use_webview": True}
 
-_DEFS.update({"dbx_push_mode": "missing_on_peer", "dbx_quota_cap_pct": 80})
+_DEFS.update({"dbx_push_mode": "missing_on_peer", "dbx_quota_cap_pct": 80, "backup_keep_daily": 7, "backup_max_mb": 500})
 
 def load_cfg():
     _HOME.mkdir(parents=True, exist_ok=True)
@@ -457,7 +457,134 @@ def _migrate_artists(c):
                 (song_id, aid, 'featuring', pos)
             )
 
+_BACKUP_LOCK = threading.RLock()
+
+def _backup_dir():
+    return ddir() / "backups"
+
+def _backup_prune():
+    try:
+        keep_d = max(1, int(CFG.get('backup_keep_daily', 7)))
+    except Exception:
+        keep_d = 7
+    try:
+        max_b = max(0, int(CFG.get('backup_max_mb', 500))) * 1024 * 1024
+    except Exception:
+        max_b = 500 * 1024 * 1024
+    keep_s = 3
+    d = _backup_dir()
+    if not d.exists():
+        return
+
+    def _size(f):
+        try:
+            return f.stat().st_size
+        except OSError:
+            return 0
+
+    def _rm(f):
+        try:
+            f.unlink()
+        except OSError as e:
+            _log_backup.warning(f'[snapshot] could not delete {f.name}: {e}')
+
+    def _ts(f):
+        return f.name.split('-', 1)[1]
+
+    for p in d.glob('.*.part'):
+        try:
+            if time.time() - p.stat().st_mtime > 3600:
+                _rm(p)
+        except OSError:
+            pass
+    daily  = sorted((f for f in d.glob('daily-*.db') if f.is_file()), key=_ts, reverse=True)
+    safety = sorted((f for f in list(d.glob('premigrate-*.db')) + list(d.glob('preimport-*.db')) if f.is_file()),
+                    key=_ts, reverse=True)
+    for f in daily[keep_d:]:
+        _rm(f)
+    daily = daily[:keep_d]
+    for f in safety[keep_s:]:
+        _rm(f)
+    safety = safety[:keep_s]
+    total = sum(_size(f) for f in daily + safety)
+    while max_b and total > max_b and len(daily) > 1:
+        f = daily.pop()
+        total -= _size(f)
+        _rm(f)
+    while max_b and total > max_b and len(safety) > 1:
+        f = safety.pop()
+        total -= _size(f)
+        _rm(f)
+
+def _backup_snapshot(kind='daily'):
+    with _BACKUP_LOCK:
+        src_p = db_path()
+        if not src_p.exists():
+            return None
+        d = _backup_dir()
+        ts = time.strftime('%Y%m%d-%H%M%S')
+        dest = d / f'{kind}-{ts}.db'
+        tmp = d / f'.{kind}-{ts}.db.part'
+        src = dst = None
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            src = sqlite3.connect(str(src_p), timeout=10)
+            dst = sqlite3.connect(str(tmp))
+            src.backup(dst)
+            dst.close()
+            dst = None
+            src.close()
+            src = None
+            os.replace(str(tmp), str(dest))
+        except Exception as e:
+            _log_backup.warning(f'[snapshot] {kind} failed: {e}')
+            return None
+        finally:
+            for _cn in (dst, src):
+                try:
+                    if _cn is not None:
+                        _cn.close()
+                except Exception:
+                    pass
+            try:
+                tmp.unlink(missing_ok=True)
+            except Exception:
+                pass
+        _log_backup.info(f'[snapshot] {kind} -> {dest.name}')
+        _backup_prune()
+        return dest
+
+def _backup_daily():
+    with _BACKUP_LOCK:
+        try:
+            d = _backup_dir()
+            newest = max(d.glob('daily-*.db'), key=lambda f: f.name, default=None) if d.exists() else None
+            if newest is not None:
+                t = time.mktime(time.strptime(newest.name[6:-3], '%Y%m%d-%H%M%S'))
+                if time.time() - t < 86400:
+                    return None
+        except Exception as e:
+            _log_backup.debug(f'[snapshot] daily check err: {e}')
+        return _backup_snapshot('daily')
+
+def _backup_pre_migrate():
+    try:
+        p = db_path()
+        if not p.exists() or p.stat().st_size == 0:
+            return
+        cn = sqlite3.connect(str(p), timeout=10)
+        try:
+            ver  = cn.execute("PRAGMA user_version").fetchone()[0]
+            cols = {r[1] for r in cn.execute("PRAGMA table_info(songs)").fetchall()}
+        finally:
+            cn.close()
+        if cols and (ver < _SCHEMA_VERSION or 'audio_available' not in cols):
+            _backup_snapshot('premigrate')
+    except Exception as e:
+        _log_backup.warning(f'[snapshot] pre-migrate check failed: {e}')
+
 def init_db():
+    _backup_pre_migrate()
     with db() as c:
         version = c.execute("PRAGMA user_version").fetchone()[0]
         c.executescript("""
@@ -6238,6 +6365,7 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
                     _status('merging remote library...')
                     tmp = Path(local_db).parent / 'library_remote.db'
                     if _dbx_pull_file(dbx, remote_db, tmp):
+                        _backup_daily()
                         _dbx_merge_db(local_db, tmp)
                         tmp.unlink(missing_ok=True)
                         results['pulled'].append('library.db')
@@ -8407,6 +8535,7 @@ def api_import_backup():
             if 'library.db' not in names and 'settings.json' not in names:
                 return jsonify({'error': 'not a valid meowify backup'}), 400
             mkdirs()
+            _backup_snapshot('preimport')
 
             # read manifest if present to know the original data_dir
             old_data_dir_str = None
@@ -27138,6 +27267,7 @@ def main():
     no_browser = '--no-browser' in sys.argv
 
     init_db()
+    threading.Thread(target=_backup_daily, daemon=True, name='db-snapshot').start()
     # always remove stuck downloading placeholders on startup - cheap and critical
     try:
         with db() as _sc:
