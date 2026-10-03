@@ -7325,7 +7325,7 @@ def _dbx_bg_poll():
             sync_lib = CFG.get('sync_library', True)
             dbx_sync_now(push_db=sync_lib,
                          pull_db=sync_lib,
-                         push_songs=False,  # relay mode: pushes follow peer manifests (_dbx_needs_push), force sync still bypasses
+                         push_songs=False,  # relay mode: pushes follow peer manifests (_dbx_needs_push), push_songs no longer bypasses
                          pull_songs=sync_lib,
                          sync_settings=CFG.get('sync_settings', True),
                          status_cb=lambda m: _set_dbx_status(m))
