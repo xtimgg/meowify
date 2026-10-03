@@ -6275,6 +6275,12 @@ def _dbx_cleanup_delivered(dbx, peer_manifests):
     import dropbox as _dbxmod
     if not peer_manifests:
         return 0, 0
+    try:
+        _expected = [i for i in _dbx_list_device_ids(dbx) if i != _dbx_get_device_id()]
+        if len(_expected) != len(peer_manifests):
+            return 0, 0
+    except Exception:
+        return 0, 0
     peer_audio, legacy = _dbx_peer_audio_sets(peer_manifests)
     if legacy:
         return 0, 0
