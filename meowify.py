@@ -6275,7 +6275,7 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
                     _dedupe_album_tracks()
                     _cleanup_sync_actions()
                 except Exception as _ce:
-                    _log_sync.warning('pre-upload cleanup err: %s', _ce)
+                    _log_dbx.warning('pre-upload cleanup err: %s', _ce)
                 _status('uploading library...')
                 _dbx_upload(dbx, local_db, remote_db)
                 results['pushed'].append('library.db')
