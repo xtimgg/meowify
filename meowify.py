@@ -9736,21 +9736,12 @@ svg {overflow: visible}
 }
 .left-ear, .right-ear{
   transform-origin: bottom right;
-  transition: .2s ease-out;
 }
-@media (hover: hover) {
-svg:hover .left-ear, svg:hover .right-ear{
-  animation: uwuEars 1.2s cubic-bezier(.2,1,.5,1) 0s 1 forwards;
+.logo svg.wiggle{
+  animation: uwu .7s cubic-bezier(.2,1,.5,1);
 }
-.logo svg:hover {
-  animation: uwu .7s cubic-bezier(.2,1,.5,1) 0s 1 forwards;
-}
-}
-svg .left-ear, svg .right-ear{
-  animation: uwuEarsOut 1s cubic-bezier(.2,2,.5,1) 0s 1 forwards;
-}
-.logo svg {
-  animation: uwuOut .5s cubic-bezier(.2,4,.5,1) 0s 1 forwards;
+.logo svg.wiggle .left-ear, .logo svg.wiggle .right-ear{
+  animation: uwuEars 1.2s cubic-bezier(.2,1,.5,1);
 }
 #nb-cfg .ni svg, #nb-stats .ni svg, #nb-lib .ni svg, #nb-add .ni svg line, #nb-stats .ni svg line,
 #mnt-cfg .ni svg, #mnt-lib .ni svg, #mnt-add .ni svg line, #nb-lib.active .ni path, #mnt-lib.active .ni path {
@@ -9792,14 +9783,6 @@ svg .left-ear, svg .right-ear{
     40%  { transform: translateY(-1px); }
     60%  { transform: translateY(1px); }
     80%  { transform: translateY(-1px); }
-    100% { transform: translateY(0px); }
-}
-@keyframes uwuEarsOut {
-    0%   { transform: rotate(-3deg); }
-    100% { transform: rotate(0deg); }
-}
-@keyframes uwuOut {
-    0%   { transform: translateY(1px); }
     100% { transform: translateY(0px); }
 }
 .nav-sec{
@@ -12116,6 +12099,15 @@ body.design-glassy .list-header.pinned::before{
     _ev = e;
     setTimeout(() => { _ev = null; }, 0);
   }, true);
+})();
+(function() {
+  const logo = document.querySelector('.logo svg');
+  logo.addEventListener('pointerenter', e => {
+    if (e.pointerType === 'mouse') logo.classList.add('wiggle');
+  });
+  logo.addEventListener('animationend', e => {
+    if (e.animationName === 'uwuEars') logo.classList.remove('wiggle');
+  });
 })();
 </script>
 <script>
