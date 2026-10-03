@@ -6426,6 +6426,14 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
     except Exception as e:
         results['errors'].append(f'actions push: {e}')
 
+    # publish the manifest early so peers see this device's state before any
+    # media transfer starts (a long upload/download no longer delays it)
+    try:
+        _status('updating device manifest...')
+        _dbx_push_manifest(dbx)
+    except Exception as e:
+        results['errors'].append(f'manifest push: {e}')
+
     # ── 3. read peer manifests once for file sync decisions ───────────────────
     # always fetch — peer_song_ids must be populated before the auto-push loop
     # or every local song would be re-uploaded on every sync cycle
@@ -6578,6 +6586,14 @@ def dbx_sync_now(push_db=True, pull_db=True, push_songs=False, pull_songs=True,
                 _dbx_prog_tick('tracks', name)
         except Exception as e:
             results['errors'].append(f'music sync: {e}')
+
+    # re-publish after the music phase so peers see deliveries before the covers
+    # phase and before the sync fully finishes
+    if pushed_song_sync_ids or results['pulled']:
+        try:
+            _dbx_push_manifest(dbx, extra_song_sync_ids=pushed_song_sync_ids)
+        except Exception as e:
+            results['errors'].append(f'manifest push: {e}')
 
     # ── 5. covers ─────────────────────────────────────────────────────────────
     pushed_cover_names = []
