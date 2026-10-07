@@ -19328,7 +19328,8 @@ async function triggerForceSync() {
   const vc = document.getElementById('vc');
   if (!vc) return;
   window._ptrHandle = MU.pullToRefresh(vc, triggerForceSync, {
-    barHeight:     40,
+    barHeight:        40,
+    triggerThreshold: 80,
     canPull:       () => isMobile() && S.view === 'library' && !!window._dbxConnected,
     label:         'syncing with dropbox…',
     doneLabel:     'synced ✓',
