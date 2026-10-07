@@ -19282,7 +19282,6 @@ function _showSyncToast(msg) {
 async function triggerForceSync() {
   if (!window._dbxConnected || window._dbxSyncing) return;
   window._dbxSyncing = true;
-  if (window._ptrHandle) window._ptrHandle.trigger();
   try {
     const kick = await fetch('/api/dropbox/sync', {method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -27161,7 +27160,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       case 'F5':
         if (S.view === 'library' && window._dbxConnected) {
           e.preventDefault();
-          triggerForceSync();
+          if (window._ptrHandle) window._ptrHandle.trigger();
+          else triggerForceSync();
         }
         break;
     }
