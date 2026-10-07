@@ -11967,7 +11967,7 @@ body.design-glassy .list-header.pinned::before{
             <polygon id="prev-tri" points="19,4 9,12 19,20"/>
           </svg>
         </button>
-        <button class="playbtn mu-ripple" id="bplay" onclick="togglePlay()">
+        <button class="playbtn" id="bplay" onclick="togglePlay()">
           <canvas class="playbtn-spiky" id="playbtn-spiky-canvas" width="240" height="240"></canvas>
           <svg class="playbtn-spiky playbtn-spiky-opt" id="playbtn-spiky-opt-svg" viewBox="-60 -60 120 120" xmlns="http://www.w3.org/2000/svg" style="display:none;pointer-events:none;overflow:visible;position:absolute;width:80px;height:80px;">
             <defs>
@@ -17184,7 +17184,7 @@ function renderNowPlaying() {
             <line x1="5" y1="4" x2="5" y2="20"/><polygon points="19,4 9,12 19,20"/>
           </svg>
         </button>
-        <button class="mob-np-playbtn mu-ripple" id="mob-np-bplay" onclick="togglePlay()">
+        <button class="mob-np-playbtn" id="mob-np-bplay" onclick="togglePlay()">
           ${_mnpSpiky
             ? `<canvas class="mob-np-spiky" id="mob-np-spiky-canvas" width="240" height="240"></canvas>
                <svg class="mob-np-spiky-opt" id="mob-np-spiky-opt-svg" viewBox="-60 -60 120 120" xmlns="http://www.w3.org/2000/svg" style="display:none;pointer-events:none;overflow:visible;position:absolute;width:110px;height:110px;">
