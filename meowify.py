@@ -18935,6 +18935,22 @@ async function saveSongEdit(sid) {
   const feat = document.getElementById('edit-song-feat')?.value?.trim();
   const trackNum = parseInt(document.getElementById('edit-song-tracknum')?.value, 10) || 0;
   if (!title) { showModal('error', '<p>title can\'t be empty</p>', '<button class="btn btn-out mu-ripple" onclick="closeModal()">ok</button>'); return; }
+
+  const song = S.library.find(s => s.id === sid);
+  const cb = document.getElementById('edit-song-single');
+  const wantsUnlink = cb?.dataset?.pendingUnlink === '1';
+  const pendingAlbum = song?._pendingAlbumId;
+
+  // album ops first — order matters for sync tombstone logic
+  if (wantsUnlink && song?.album_id) {
+    const ur = await api('POST', '/api/songs/'+sid+'/unlink-album');
+    if (ur && ur.error) { showModal('error', `<p>${esc(ur.error)}</p>`, '<button class="btn btn-out mu-ripple" onclick="closeModal()">ok</button>'); return; }
+  } else if (pendingAlbum && pendingAlbum !== song?.album_id) {
+    const sr = await api('POST', '/api/songs/'+sid+'/set-album', { album_id: pendingAlbum });
+    if (sr && sr.error) { showModal('error', `<p>${esc(sr.error)}</p>`, '<button class="btn btn-out mu-ripple" onclick="closeModal()">ok</button>'); return; }
+  }
+  if (song) delete song._pendingAlbumId;
+
   const res = await api('PATCH', '/api/songs/'+sid, {
     title, artist, featuring_artists: feat, track_num: trackNum
   });
