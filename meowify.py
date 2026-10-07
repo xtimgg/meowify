@@ -9550,7 +9550,7 @@ def _theme_css(hue=145, sat=50, bri=1.0):
     # which beats any stylesheet without needing !important.
     # _BAKED_* globals preserved for the DOMContentLoaded FOUC guard and
     # _BAKED_DESIGN boot path.
-    return f'<script>window._BAKED_HUE={h};window._BAKED_SAT={s};window._BAKED_BRI={b};window._BAKED_DESIGN={json.dumps(CFG.get("ui_design","material"))};</script>'
+    return f'<script>window._BAKED_HUE={h};window._BAKED_SAT={s};window._BAKED_BRI={b};window._BAKED_DESIGN={json.dumps(CFG.get("ui_design","material"))};window._BAKED_FONT={json.dumps(CFG.get("font_override",""))};</script>'
 
 HTML_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
@@ -11132,10 +11132,11 @@ textarea.inp{resize:none;min-height:40px;overflow:hidden}
 }
 .search-track{
   display:flex;align-items:center;gap:12px;
-  padding:20px 12px;border-radius:var(--radius-md);
+  padding:0px 6px;border-radius:var(--radius-md);
   background:var(--color-surface-container);
   border:1px solid var(--color-outline-variant);
   cursor:pointer;transition:background var(--dur-2);
+  min-height: 60px;
 }
 @media (hover: hover) {.search-track:hover{background:var(--color-surface-container-high)}}
 .search-track img{
@@ -26847,6 +26848,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setView('library');
   // apply design theme before skeleton so body classes are active during render
   if (window._BAKED_DESIGN && window._BAKED_DESIGN !== 'material') applyDesign(window._BAKED_DESIGN);
+  if (window._BAKED_FONT) applyFontOverride(window._BAKED_FONT);
   (function _paintSkeleton() {
     const mob = isMobile();
     // default col widths matching COL_DEFS - no S.colWidths yet so use raw defaults
