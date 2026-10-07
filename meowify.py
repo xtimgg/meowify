@@ -19931,7 +19931,7 @@ function esc(t) {
       const dotSmooth = 0.4 + 0.3 * st;
       if (CFG.spiky_vol_icon === false) {
         dot.style.transform = '';
-        dot.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: Math.max(0.5, dotOuter), innerR: Math.max(0.5, dotOuter), spikes: 32, smooth: 1, holeR: null }));
+        dot.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: Math.max(0.5, dotOuter * 0.6), innerR: Math.max(0.5, dotOuter * 0.6), spikes: 32, smooth: 1, holeR: null }));
       } else {
         dot.style.transform = `rotate(${-_volRotAngle}deg)`;
         dot.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: Math.max(0.5, dotOuter), innerR: Math.max(0.3, dotInner), spikes: 5, smooth: dotSmooth, valleySmooth: dotSmooth * 0.5, holeR: null }));
