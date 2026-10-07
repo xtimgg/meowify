@@ -19931,7 +19931,7 @@ function esc(t) {
       const dotSmooth = 0.4 + 0.3 * st;
       if (CFG.spiky_vol_icon === false) {
         dot.style.transform = '';
-        dot.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: Math.max(0.5, dotOuter * 0.6), innerR: Math.max(0.5, dotOuter * 0.6), spikes: 32, smooth: 1, holeR: null }));
+        dot.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: Math.max(0.5, dotOuter * 0.6), innerR: Math.max(0.5, dotOuter * 0.85), spikes: 32, smooth: 1, holeR: null }));
       } else {
         dot.style.transform = `rotate(${-_volRotAngle}deg)`;
         dot.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: Math.max(0.5, dotOuter), innerR: Math.max(0.3, dotInner), spikes: 5, smooth: dotSmooth, valleySmooth: dotSmooth * 0.5, holeR: null }));
@@ -20377,11 +20377,10 @@ function _frameRate(rate) {
     const hasSong = !!(S.cur || engine.hasPaused);
 
     if (!hasSong) {
-      if (!spikyEnabled) {
-        // plain circle - mobile bigger, max spikes for roundness
-        const rIdle = isMobile() ? 80 : SPIKY_BASE_OUTER + 2;
-        _drawSpikyCanvas(canvas, { outerR: rIdle, innerR: rIdle, spikes: 32, smooth: 1 }, false, 0);
-      } else {
+    if (!spikyEnabled) {
+      const rIdle = isMobile() ? 80 : SPIKY_BASE_OUTER + 2;
+      _drawNativeCircle(canvas, rIdle, false);
+    } else {
         _drawSpikyCanvas(canvas, {
           outerR: SPIKY_BASE_OUTER + 2,
           innerR: SPIKY_BASE_INNER - 2,
@@ -20393,9 +20392,8 @@ function _frameRate(rate) {
     }
 
     if (!spikyEnabled) {
-      // plain circle - mobile bigger, max spikes for roundness
       const rActive = isMobile() ? 100 : SPIKY_BASE_OUTER;
-      _drawSpikyCanvas(canvas, { outerR: rActive, innerR: rActive, spikes: 32, smooth: 1 }, true, 0);
+      _drawNativeCircle(canvas, rActive, true);
       return;
     }
 
