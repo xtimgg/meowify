@@ -7319,15 +7319,14 @@ def _dbx_apply_song_unlink_album(c, song_sync_id, action_ts=0):
 
 def _dbx_apply_song_set_album(c, song_sync_id, album_id, action_ts=0):
     row = c.execute("SELECT id, modified_at FROM songs WHERE sync_id=?", (song_sync_id,)).fetchone()
-    alb = c.execute("SELECT id FROM albums WHERE id=?", (album_id,)).fetchone()
+    alb = c.execute("SELECT id, title FROM albums WHERE id=?", (album_id,)).fetchone()
     if not row or not alb:
         return
     sid, local_modat = row[0], row[1]
     if local_modat and action_ts and local_modat > action_ts:
         return  # local is newer, don't clobber
-    alb_title = c.execute("SELECT title FROM albums WHERE id=?", (album_id,)).fetchone()
     c.execute("UPDATE songs SET album_id=?, album=?, modified_at=? WHERE id=?",
-              (album_id, alb_title[0] if alb_title else None, int(_time.time()), sid))
+              (album_id, alb[1], int(_time.time()), sid))
     ex = c.execute("SELECT id FROM album_tracks WHERE album_id=? AND song_id=?", (album_id, sid)).fetchone()
     if not ex:
         c.execute("INSERT INTO album_tracks (id, album_id, song_id) VALUES (?,?,?)",
