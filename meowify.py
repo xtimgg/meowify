@@ -20358,6 +20358,28 @@ function _frameRate(rate) {
     }
   }
 
+  function _drawNativeCircle(canvas, r, active) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const px = Math.round(SPIKY_CANVAS_SIZE * dpr);
+    if (canvas.width !== px || canvas.height !== px) { canvas.width = px; canvas.height = px; }
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr, dpr);
+    const style = _spikyThemeStyle(active);
+    const c = SPIKY_CANVAS_SIZE / 2;
+    if (style.glow?.color) {
+      ctx.shadowColor = style.glow.color;
+      ctx.shadowBlur  = style.glow.blur || 10;
+    }
+    ctx.fillStyle = style.fill;
+    ctx.beginPath();
+    ctx.arc(c, c, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function updateSpikyBtn() {
     const canvas = document.getElementById('playbtn-spiky-canvas');
     if (!canvas) return;
