@@ -141,7 +141,7 @@ except ImportError:
 # ── settings ───────────────────────────────────────────────────────────────────
 _HOME   = Path(os.environ['MEOWIFY_DATA_DIR']) if 'MEOWIFY_DATA_DIR' in os.environ else Path.home() / ".local" / "share" / "meowify"
 _SCFG   = _HOME / "settings.json"
-_DEFS   = {"data_dir": str(_HOME), "gapless": True, "format": "mp3", "quality": "0", "crossfade": 0, "genius_token": "", "auto_genius": True, "volume": 0.8, "volume_norm": False, "target_lufs": -14, "theme_hue": 145, "theme_sat": 50, "theme_bri": 1.0, "ddg_genius": True, "prev_restarts": True, "dl_speed_single": "fast", "dl_speed_batch": "balanced", "spotify_local_dir": "", "auto_align_lyrics": False, "ui_design": "material", "dropbox_refresh_token": "", "dropbox_sync_enabled": False, "dropbox_last_sync": 0, "device_id": "", "device_name": "", "sync_library": True, "sync_settings": True, "enhance_audio": False, "immersive_audio": False, "music_video": False, "music_video_autoplay": False, "transition_albums": False, "gapless_transition_only": False, "shuffle_transition_only": False, "cover_art_bleed": False, "cover_art_hue_sync": False, "audio_scrub": False, "eq": [], "win_use_webview": True}
+_DEFS   = {"data_dir": str(_HOME), "gapless": True, "format": "mp3", "quality": "0", "crossfade": 0, "genius_token": "", "auto_genius": True, "volume": 0.8, "volume_norm": False, "target_lufs": -14, "theme_hue": 145, "theme_sat": 50, "theme_bri": 1.0, "ddg_genius": True, "prev_restarts": True, "dl_speed_single": "fast", "dl_speed_batch": "balanced", "spotify_local_dir": "", "auto_align_lyrics": False, "ui_design": "material", "dropbox_refresh_token": "", "dropbox_sync_enabled": False, "dropbox_last_sync": 0, "device_id": "", "device_name": "", "sync_library": True, "sync_settings": True, "font_override": "", "enhance_audio": False, "immersive_audio": False, "music_video": False, "music_video_autoplay": False, "transition_albums": False, "gapless_transition_only": False, "shuffle_transition_only": False, "cover_art_bleed": False, "cover_art_hue_sync": False, "audio_scrub": False, "eq": [], "win_use_webview": True}
 
 _DEFS.update({"dbx_push_mode": "missing_on_peer", "dbx_quota_cap_pct": 80, "backup_keep_daily": 7, "backup_max_mb": 500})
 
@@ -12156,7 +12156,7 @@ function setMobileTab(tab){
     S.view='playlists-mobile';
     document.getElementById('vtitle').textContent='playlists';
     document.getElementById('tacts').innerHTML=
-      `<button class="btn btn-fill mu-ripple" onclick="showCreatePl()" style="height:33px;">+ new</button>`;
+      `<button class="btn btn-fill mu-ripple" onclick="showCreatePl()" style="height:30px;">+ new</button>`;
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     _updateMobileTab('playlists-mobile');
     renderMobilePlaylists();
@@ -16465,7 +16465,7 @@ function setView(v, pid, aid) {
     tacts.innerHTML = `
       <input type="file" id="spotify-history-in" multiple accept=".json" style="display:none"
         onchange="importSpotifyHistory(this)">
-      <button class="btn btn-out mu-ripple" style="padding:6px 14px;font-size:13px;display:flex;align-items:center;gap:6px"
+      <button class="btn btn-out mu-ripple" style="padding:4px 14px;font-size:13px;display:flex;align-items:center;gap:6px"
         onclick="document.getElementById('spotify-history-in').click()">
         ♫ import spotify stats
       </button>`;
@@ -22227,7 +22227,7 @@ function _renderDlPanel(opening) {
   };
 
   const emptyHtml = items.length === 0
-    ? `<div class="cx-item" style="cursor:default;color:var(--color-on-surface-variant);justify-content:center;padding:16px 12px;border-radius:0">no downloads yet</div>`
+    ? `<div class="cx-item" style="cursor:default;color:var(--color-on-surface-variant);justify-content:center;padding:16px 12px;border-radius:0">no downloads yet ;-;</div>`
     : '';
 
   const headerDiv = document.createElement('div');
@@ -24146,6 +24146,13 @@ async function api(method, path, body, _retries) {
   return r.json().catch(()=> ({}));
 }
 
+function applyFontOverride(val) {
+  let el = document.getElementById('font-override');
+  if (!val || !val.trim()) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('style'); el.id = 'font-override'; document.head.appendChild(el); }
+  el.textContent = `body, body * { font-family: ${val} !important; }`;
+}
+
 function applyDesign(design) {
   _applyDesignImpl(design);
   _repaintWavyColors();
@@ -24704,6 +24711,7 @@ async function loadData() {
       _repaintWavyColors(); updateSpikyBtn(); _updateMobNpSpiky();
     }
     if (cfg.ui_design !== undefined) applyDesign(cfg.ui_design);
+    if (cfg.font_override !== undefined) applyFontOverride(cfg.font_override);
     applyPlayerBtnVisibility();
     applyVolSliderOrientation();
   }
@@ -26150,7 +26158,7 @@ function renderSettings() {
       ${_sectionMatch('audio') ? section('audio', `
         ${row('volume normalization', 'loudness matching across tracks', toggle('volume_norm', CFG.volume_norm, 'applyNormToCurrentSong()'))}
         ${row('target loudness', 'LUFS target for normalization', `
-          <input class="input" type="number" step="0.5" value="${CFG.target_lufs ?? -14}" style="width:90px;text-align:right;padding:10px 14px"
+          <input class="input" type="number" step="0.5" value="${CFG.target_lufs ?? -14}" style="width:90px;text-align:right;padding:8px 6px"
             onchange="saveSetting('target_lufs',parseFloat(this.value))">
         `)}
         ${(()=>{
@@ -26254,6 +26262,13 @@ function renderSettings() {
             <input type="checkbox" ${CFG.cover_art_hue_sync ? 'checked' : ''} onchange="_onHueSyncToggle(this.checked)" onclick="event.stopPropagation()">
             <div class="switch-track"><div class="switch-thumb"></div></div>
           </label>`)}
+        ${row('font override', 'override font family — any valid css font-family value (leave blank to reset)', `
+          <input class="inp" type="text" placeholder="e.g. Inter, Arial, monospace"
+            style="width:220px"
+            value="${CFG.font_override ?? ''}"
+            onchange="saveSetting('font_override',this.value).then(()=>applyFontOverride(this.value))"
+          >
+        `)}
         ${row('ui design', 'visual style', `
           <div class="select-wrap" style="width:160px">
             <select class="input" style="width:160px" onchange="saveSetting('ui_design',this.value).then(()=>{applyDesign(this.value);renderSettings();})">
