@@ -7313,7 +7313,7 @@ def _dbx_apply_song_unlink_album(c, song_sync_id):
         if remaining == 0 and owned == 0:
             c.execute("DELETE FROM album_tracks WHERE album_id=?", (album_id,))
             c.execute("DELETE FROM albums WHERE id=?", (album_id,))
-            _record_sync_action('album_delete', album_id, conn=c)
+            # no _record_sync_action here — apply path never emits back to sync
 
 def _dbx_apply_song_set_album(c, song_sync_id, album_id):
     row = c.execute("SELECT id FROM songs WHERE sync_id=?", (song_sync_id,)).fetchone()
@@ -7321,8 +7321,9 @@ def _dbx_apply_song_set_album(c, song_sync_id, album_id):
     if not row or not alb:
         return
     sid = row[0]
-    c.execute("UPDATE songs SET album_id=?, modified_at=? WHERE id=?", (album_id, int(_time.time()), sid))
-    # album trigger will sync songs.album text; ensure album_tracks row exists
+    alb_title = c.execute("SELECT title FROM albums WHERE id=?", (album_id,)).fetchone()
+    c.execute("UPDATE songs SET album_id=?, album=?, modified_at=? WHERE id=?",
+              (album_id, alb_title[0] if alb_title else None, int(_time.time()), sid))
     ex = c.execute("SELECT id FROM album_tracks WHERE album_id=? AND song_id=?", (album_id, sid)).fetchone()
     if not ex:
         c.execute("INSERT INTO album_tracks (id, album_id, song_id) VALUES (?,?,?)",
@@ -8852,7 +8853,7 @@ def api_song_unlink_album(sid):
         if remaining == 0 and owned == 0:
             c.execute("DELETE FROM album_tracks WHERE album_id=?", (album_id,))
             c.execute("DELETE FROM albums WHERE id=?", (album_id,))
-            _record_sync_action('album_delete', album_id)
+            _record_sync_action('album_delete', album_id, conn=c)
     return jsonify({'ok': True})
 
 @app.route('/api/songs/<sid>/set-album', methods=['POST'])
