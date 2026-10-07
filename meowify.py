@@ -11967,7 +11967,7 @@ body.design-glassy .list-header.pinned::before{
             <polygon id="prev-tri" points="19,4 9,12 19,20"/>
           </svg>
         </button>
-        <button class="playbtn mu-ripple" data-ripple-disabled id="bplay" onclick="togglePlay()">
+        <button class="playbtn" data-ripple-disabled="true" id="bplay" onclick="togglePlay()">
           <canvas class="playbtn-spiky" id="playbtn-spiky-canvas" width="240" height="240"></canvas>
           <svg class="playbtn-spiky playbtn-spiky-opt" id="playbtn-spiky-opt-svg" viewBox="-60 -60 120 120" xmlns="http://www.w3.org/2000/svg" style="display:none;pointer-events:none;overflow:visible;position:absolute;width:80px;height:80px;">
             <defs>
@@ -12980,12 +12980,67 @@ function applyVolSliderOrientation() {
 
 function showNowPlayingCtx(e) {
   e.preventDefault(); e.stopPropagation();
+  if (isMobile() && e.target && e.target.closest) {
+    const _t = e.target;
+    if (_t.closest('.mob-np-controls')) {
+      if (_t.closest('#mob-np-bshuf')) showShuffleCtx(e); else showPCenterCtx(e);
+      return;
+    }
+    const _sep = document.querySelector('.np-cover-col-sep');
+    if (_sep && !(_sep.compareDocumentPosition(_t) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+  }
   showCtx(e, [
     { icon: !_npSectionHidden('lyrics')  ? '☑' : '☐', label: 'lyrics section',   fn: () => _toggleNpSection('lyrics') },
     { icon: !_npSectionHidden('details') ? '☑' : '☐', label: 'details section',   fn: () => _toggleNpSection('details') },
     { icon: !_npSectionHidden('nextup')  ? '☑' : '☐', label: 'next up section',   fn: () => _toggleNpSection('nextup') },
   ]);
 }
+
+(function(){
+  if (window._npLpInit) return;
+  window._npLpInit = true;
+  const HOLD = 420, SLOP = 10;
+  let timer = null, sx = 0, sy = 0, tgt = null, firedAt = 0, swallowClick = false;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  document.addEventListener('pointerdown', ev => {
+    swallowClick = false;
+    cancel();
+    if (!isMobile() || ev.pointerType === 'mouse') return;
+    const t = ev.target;
+    if (!t || !t.closest || !t.closest('#nowplaying-body')) return;
+    if (t.closest('#np-cover-inner')) return;
+    sx = ev.clientX; sy = ev.clientY; tgt = t;
+    timer = setTimeout(() => {
+      timer = null;
+      const inCtrls = tgt.closest('.mob-np-controls');
+      const sep = document.querySelector('.np-cover-col-sep');
+      const inSections = sep && (sep.compareDocumentPosition(tgt) & Node.DOCUMENT_POSITION_FOLLOWING);
+      if (!inCtrls && !inSections) return;
+      firedAt = Date.now();
+      swallowClick = true;
+      try { navigator.vibrate?.(18); } catch (_) {}
+      const fake = { target: tgt, clientX: sx, clientY: sy, preventDefault(){}, stopPropagation(){} };
+      if (inCtrls) { if (tgt.closest('#mob-np-bshuf')) showShuffleCtx(fake); else showPCenterCtx(fake); }
+      else showNowPlayingCtx(fake);
+    }, HOLD);
+  }, true);
+  document.addEventListener('pointermove', ev => {
+    if (!timer) return;
+    if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > SLOP) cancel();
+  }, { passive: true });
+  document.addEventListener('pointerup', cancel, true);
+  document.addEventListener('pointercancel', cancel, true);
+  document.addEventListener('click', ev => {
+    if (!swallowClick) return;
+    swallowClick = false;
+    ev.preventDefault(); ev.stopPropagation();
+  }, true);
+  document.addEventListener('contextmenu', ev => {
+    if (Date.now() - firedAt < 700 && ev.target.closest && ev.target.closest('#nowplaying-body')) {
+      ev.preventDefault(); ev.stopPropagation();
+    }
+  }, true);
+})();
 
 function showColCtx(e,view){
   e.preventDefault();e.stopPropagation();
@@ -17184,7 +17239,7 @@ function renderNowPlaying() {
             <line x1="5" y1="4" x2="5" y2="20"/><polygon points="19,4 9,12 19,20"/>
           </svg>
         </button>
-        <button class="mob-np-playbtn mu-ripple" data-ripple-disabled id="mob-np-bplay" onclick="togglePlay()">
+        <button class="mob-np-playbtn" data-ripple-disabled="true" id="mob-np-bplay" onclick="togglePlay()">
           ${_mnpSpiky
             ? `<canvas class="mob-np-spiky" id="mob-np-spiky-canvas" width="240" height="240"></canvas>
                <svg class="mob-np-spiky-opt" id="mob-np-spiky-opt-svg" viewBox="-60 -60 120 120" xmlns="http://www.w3.org/2000/svg" style="display:none;pointer-events:none;overflow:visible;position:absolute;width:110px;height:110px;">
