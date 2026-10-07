@@ -8870,8 +8870,9 @@ def api_song_set_album(sid):
         alb = c.execute("SELECT id FROM albums WHERE id=?", (album_id,)).fetchone()
         if not alb:
             return jsonify({'error': 'album not found'}), 404
-        c.execute("UPDATE songs SET album_id=?, modified_at=? WHERE id=?",
-                  (album_id, int(time.time()), sid))
+        alb_title = c.execute("SELECT title FROM albums WHERE id=?", (album_id,)).fetchone()
+        c.execute("UPDATE songs SET album_id=?, album=?, modified_at=? WHERE id=?",
+                  (album_id, alb_title[0] if alb_title else None, int(time.time()), sid))
         ex = c.execute("SELECT id FROM album_tracks WHERE album_id=? AND song_id=?",
                        (album_id, sid)).fetchone()
         if not ex:
