@@ -18906,7 +18906,7 @@ async function pickAlbumForSong(sid) {
     `<div style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;padding-right:4px">
        ${albums.map(a => `
          <div class="search-track mu-ripple" style="cursor:pointer" onclick="applyAlbumPick('${sid}','${a.id}','${esc(a.title||'')}')">
-           ${a.cover_path ? `<img src="/cover-album/${a.id}" alt="" style="width:40px;height:40px;border-radius:var(--radius-sm);object-fit:cover;flex-shrink:0">` : '<div style="width:40px;height:40px;border-radius:var(--radius-sm);background:var(--color-surface-container-high);flex-shrink:0"></div>'}
+           ${a.cover_path ? `<img src="/cover/${a.id}" alt="" style="width:40px;height:40px;border-radius:var(--radius-sm);object-fit:cover;flex-shrink:0">` : '<div style="width:40px;height:40px;border-radius:var(--radius-sm);background:var(--color-surface-container-high);flex-shrink:0"></div>'}
            <div class="search-track-info" style="min-width:0">
              <div class="search-track-title">${esc(a.title||'')}</div>
              <div class="search-track-artist">${esc(a.artist||'')}</div>
