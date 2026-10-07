@@ -8830,6 +8830,56 @@ def api_album_detail(aid):
     if not row: return jsonify({'error':'not found'}), 404
     return jsonify(dict(row))
 
+@app.route('/api/songs/<sid>/unlink-album', methods=['POST'])
+def api_song_unlink_album(sid):
+    """Detach a song from its album. Emits song_unlink_album sync action so peers clean up too."""
+    with db() as c:
+        row = c.execute("SELECT sync_id, album_id FROM songs WHERE id=?", (sid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'not found'}), 404
+        sync_id, album_id = row[0], row[1]
+        if not album_id:
+            return jsonify({'ok': True, 'noop': True})
+        c.execute("UPDATE songs SET album_id=NULL, album=NULL, modified_at=? WHERE id=?",
+                  (int(time.time()), sid))
+        c.execute("DELETE FROM album_tracks WHERE song_id=?", (sid,))
+        if sync_id:
+            _record_sync_action('song_unlink_album', sync_id, conn=c)
+        # tombstone album if now empty
+        remaining = c.execute("SELECT COUNT(*) FROM songs WHERE album_id=?", (album_id,)).fetchone()[0]
+        owned = c.execute("SELECT COUNT(*) FROM album_tracks WHERE album_id=? AND song_id IS NOT NULL",
+                          (album_id,)).fetchone()[0]
+        if remaining == 0 and owned == 0:
+            c.execute("DELETE FROM album_tracks WHERE album_id=?", (album_id,))
+            c.execute("DELETE FROM albums WHERE id=?", (album_id,))
+            _record_sync_action('album_delete', album_id)
+    return jsonify({'ok': True})
+
+@app.route('/api/songs/<sid>/set-album', methods=['POST'])
+def api_song_set_album(sid):
+    """Link a song to an existing album. Emits song_set_album so peers link too."""
+    data = request.json or {}
+    album_id = data.get('album_id', '').strip()
+    if not album_id:
+        return jsonify({'error': 'album_id required'}), 400
+    with db() as c:
+        song = c.execute("SELECT id, sync_id FROM songs WHERE id=?", (sid,)).fetchone()
+        if not song:
+            return jsonify({'error': 'song not found'}), 404
+        alb = c.execute("SELECT id FROM albums WHERE id=?", (album_id,)).fetchone()
+        if not alb:
+            return jsonify({'error': 'album not found'}), 404
+        c.execute("UPDATE songs SET album_id=?, modified_at=? WHERE id=?",
+                  (album_id, int(time.time()), sid))
+        ex = c.execute("SELECT id FROM album_tracks WHERE album_id=? AND song_id=?",
+                       (album_id, sid)).fetchone()
+        if not ex:
+            c.execute("INSERT INTO album_tracks (id, album_id, song_id) VALUES (?,?,?)",
+                      (str(uuid.uuid4()), album_id, sid))
+        if song[1]:  # sync_id
+            _record_sync_action('song_set_album', song[1], target2=album_id, conn=c)
+    return jsonify({'ok': True})
+
 @app.route('/api/albums/<aid>', methods=['PATCH'])
 def api_album_patch(aid):
     data = request.json or {}
