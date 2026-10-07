@@ -10116,11 +10116,11 @@ svg {overflow: visible}
   }
   /* mobile now playing controls block */
   .mob-np-controls{
-    padding:4px 20px 16px;
+    padding:4px 20px 0;
     margin-top:16px;
     display:flex;
     flex-direction:column;
-    gap:14px;
+    gap:6px;
     flex-shrink:0;
   }
   .mob-np-prog-row{
@@ -10167,7 +10167,7 @@ svg {overflow: visible}
   }
   @media (hover: hover) {.mob-np-wavy-wrap:hover #mob-np-wavy-thumb{height:18px;width:4px;}}
   .mob-np-ctrls{
-    display:flex;align-items:center;justify-content:space-evenly;
+    display:flex;align-items:center;justify-content:space-around;
   }
   .mob-np-playbtn{
     width:68px;height:68px;border-radius:var(--radius-full);
@@ -19328,8 +19328,8 @@ async function triggerForceSync() {
   const vc = document.getElementById('vc');
   if (!vc) return;
   window._ptrHandle = MU.pullToRefresh(vc, triggerForceSync, {
-    barHeight:        40,
-    triggerThreshold: 80,
+    barHeight:        25,
+    triggerThreshold: 200,
     canPull:       () => isMobile() && S.view === 'library' && !!window._dbxConnected,
     label:         'syncing with dropbox…',
     doneLabel:     'synced ✓',
@@ -19967,6 +19967,11 @@ function _volRotTickInner(_skipDom) {
       return;
     }
     if (_preMuteVol !== null) { _volRotSpeed = 0; return; }
+    if (CFG.spiky_vol_icon === false) {
+      _volRotSpeed = 0;
+      _volSpikyT = S.isPlaying ? 1 : 0;
+      return;
+    }
     const playing = S.isPlaying;
     const speedTarget = playing ? SPIKY_ROT_SPEED : 0;
     const spikyTarget = playing ? 1 : 0;
