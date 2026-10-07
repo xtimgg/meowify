@@ -19916,7 +19916,8 @@ function esc(t) {
     const volSmooth = 0.3 + v * 0.5 + (0.5 - 0.3 - v * 0.5) * st;
     if (CFG.spiky_vol_icon === false) {
       path.style.transform = '';
-      path.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: outerR, innerR: outerR, spikes: 32, smooth: 1, holeR: holeR > 0.1 ? holeR : null }));
+      const plainR = effectiveOuter * 0.775;
+      path.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: plainR, innerR: plainR, spikes: 32, smooth: 1, holeR: holeR > 0.1 ? holeR : null }));
     } else {
       path.style.transform = `rotate(${_volRotAngle}deg)`;
       path.setAttribute('d', MU.spikyCircle({ cx: 0, cy: 0, outerR: effectiveOuter, innerR, spikes, smooth: volSmooth, valleySmooth: volSmooth * 0.5, holeR: holeR > 0 ? holeR : null }));
