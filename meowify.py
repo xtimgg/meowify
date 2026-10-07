@@ -7299,6 +7299,35 @@ def _dbx_pull_actions(dbx, own_device_id):
         _dbx_apply_actions(c, new_actions)
     return new_actions
 
+def _dbx_apply_song_unlink_album(c, song_sync_id):
+    row = c.execute("SELECT id, album_id FROM songs WHERE sync_id=?", (song_sync_id,)).fetchone()
+    if not row:
+        return
+    sid, album_id = row[0], row[1]
+    c.execute("UPDATE songs SET album_id=NULL, album=NULL, modified_at=? WHERE id=?", (int(_time.time()), sid))
+    c.execute("DELETE FROM album_tracks WHERE song_id=?", (sid,))
+    # if album is now completely empty, tombstone it
+    if album_id:
+        remaining = c.execute("SELECT COUNT(*) FROM songs WHERE album_id=?", (album_id,)).fetchone()[0]
+        owned = c.execute("SELECT COUNT(*) FROM album_tracks WHERE album_id=? AND song_id IS NOT NULL", (album_id,)).fetchone()[0]
+        if remaining == 0 and owned == 0:
+            c.execute("DELETE FROM album_tracks WHERE album_id=?", (album_id,))
+            c.execute("DELETE FROM albums WHERE id=?", (album_id,))
+            _record_sync_action('album_delete', album_id, conn=c)
+
+def _dbx_apply_song_set_album(c, song_sync_id, album_id):
+    row = c.execute("SELECT id FROM songs WHERE sync_id=?", (song_sync_id,)).fetchone()
+    alb = c.execute("SELECT id FROM albums WHERE id=?", (album_id,)).fetchone()
+    if not row or not alb:
+        return
+    sid = row[0]
+    c.execute("UPDATE songs SET album_id=?, modified_at=? WHERE id=?", (album_id, int(_time.time()), sid))
+    # album trigger will sync songs.album text; ensure album_tracks row exists
+    ex = c.execute("SELECT id FROM album_tracks WHERE album_id=? AND song_id=?", (album_id, sid)).fetchone()
+    if not ex:
+        c.execute("INSERT INTO album_tracks (id, album_id, song_id) VALUES (?,?,?)",
+                  (str(uuid.uuid4()), album_id, sid))
+
 def _dbx_apply_actions(c, actions):
     for act in actions:
         kind, target, target2 = act['action'], act['target'], act.get('target2')
@@ -7306,6 +7335,10 @@ def _dbx_apply_actions(c, actions):
         try:
             if kind == 'song_delete':
                 _dbx_apply_song_delete(c, target)
+            elif kind == 'song_unlink_album':
+                _dbx_apply_song_unlink_album(c, target)
+            elif kind == 'song_set_album':
+                _dbx_apply_song_set_album(c, target, target2)
             elif kind == 'album_delete':
                 c.execute("DELETE FROM album_tracks WHERE album_id=?", (target,))
                 c.execute("DELETE FROM albums WHERE id=?", (target,))
