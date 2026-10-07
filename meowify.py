@@ -19282,7 +19282,7 @@ function _showSyncToast(msg) {
 async function triggerForceSync() {
   if (!window._dbxConnected || window._dbxSyncing) return;
   window._dbxSyncing = true;
-  window._ptrForceShow = true;
+  if (window._ptrHandle) window._ptrHandle.trigger();
   try {
     const kick = await fetch('/api/dropbox/sync', {method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -19320,7 +19320,6 @@ async function triggerForceSync() {
   } catch(e) {}
   finally {
     window._dbxSyncing = false;
-    window._ptrForceShow = false;
   }
 }
 
@@ -19331,7 +19330,7 @@ async function triggerForceSync() {
   if (!vc) return;
   window._ptrHandle = MU.pullToRefresh(vc, triggerForceSync, {
     barHeight:     40,
-    canPull:       () => (isMobile() || window._ptrForceShow) && S.view === 'library' && !!window._dbxConnected,
+    canPull:       () => isMobile() && S.view === 'library' && !!window._dbxConnected,
     label:         'syncing with dropbox…',
     doneLabel:     'synced ✓',
     indeterminate: true,
