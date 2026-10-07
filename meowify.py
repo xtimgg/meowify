@@ -20105,9 +20105,11 @@ function _sharedAnimTick(now) {
     // the buffer cutover fires — but settle normally when paused mid-stream
     && (!engine._stream || engine._stream.paused);
   const volSettled = _volRotSpeed < 0.001 && (
-    isMobile()
-      ? Math.abs(_volSpikyT - (S.isPlaying ? 1 : 0)) < 0.005
-      : !S.isPlaying && Math.abs(_volSpikyT) < 0.001
+    CFG.spiky_vol_icon === false
+      ? true
+      : isMobile()
+        ? Math.abs(_volSpikyT - (S.isPlaying ? 1 : 0)) < 0.005
+        : !S.isPlaying && Math.abs(_volSpikyT) < 0.001
   );
   const wavySettled = !CFG.wavy_seekbar || (!S.isPlaying && !_seekDragging && _wavyAmpCur < 0.001 && _mobNpWavyAmpCur < 0.001);
   const barsSettled = !barsActive;
