@@ -18817,9 +18817,11 @@ function showSongDetails(sid){
 function editSong(sid) {
   const song = S.library.find(s => s.id === sid);
   if (!song) return;
+  const isSingle = !song.album_id;
   const cov = song.cover_path
     ? `<img id="edit-song-cover-img" src="/cover/${song.id}" alt="" style="width:72px;height:72px;border-radius:var(--radius-md);object-fit:cover;flex-shrink:0">`
     : `<div id="edit-song-cover-img" style="width:72px;height:72px;border-radius:var(--radius-md);background:var(--color-surface-container-high);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">♪</div>`;
+  const albumName = song.album_id ? (S.albums.find(a => a.id === song.album_id)?.title || song.album || '') : '';
   showModal('edit track',
     `<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px">
        ${cov}
@@ -18847,10 +18849,84 @@ function editSong(sid) {
          <span style="font:var(--type-body-small);font-variation-settings:var(--fv-body);color:var(--color-on-surface-variant)">track #</span>
          <input class="inp" id="edit-song-tracknum" type="number" min="0" value="${song.track_num||0}" style="max-width:100px">
        </label>
+       <div style="display:flex;flex-direction:column;gap:6px">
+         <div style="display:flex;align-items:center;justify-content:space-between">
+           <span style="font:var(--type-body-small);font-variation-settings:var(--fv-body);color:var(--color-on-surface-variant)">single</span>
+           <label style="display:flex;align-items:center;gap:0;cursor:pointer;position:relative;width:44px;height:24px">
+             <input type="checkbox" id="edit-song-single" ${isSingle ? 'checked' : ''} style="opacity:0;position:absolute;width:0;height:0"
+               onchange="toggleSingleMode('${sid}', this.checked)">
+             <span id="edit-single-track" style="
+               display:block;width:44px;height:24px;border-radius:12px;
+               background:${isSingle ? 'var(--color-primary)' : 'var(--color-surface-container-highest)'};
+               transition:background .15s;position:relative;flex-shrink:0">
+               <span style="
+                 position:absolute;top:3px;left:${isSingle ? '23px' : '3px'};
+                 width:18px;height:18px;border-radius:50%;
+                 background:${isSingle ? 'var(--color-on-primary)' : 'var(--color-outline)'};
+                 transition:left .15s,background .15s">
+               </span>
+             </span>
+           </label>
+         </div>
+         <div id="edit-album-row" style="display:${isSingle ? 'none' : 'flex'};align-items:center;gap:8px">
+           <span id="edit-album-name" style="font:var(--type-body-small);font-variation-settings:var(--fv-body);color:var(--color-on-surface-variant);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(albumName)}</span>
+           <button class="btn btn-out mu-ripple" style="flex-shrink:0;padding:4px 10px;font-size:12px" onclick="pickAlbumForSong('${sid}')">change</button>
+         </div>
+       </div>
      </div>`,
     `<button class="btn btn-out mu-ripple" onclick="closeModal()">cancel</button>
      <button class="btn btn-fill mu-ripple" onclick="saveSongEdit('${sid}')">save</button>`
   );
+}
+
+function toggleSingleMode(sid, isSingle) {
+  const track = document.getElementById('edit-single-track');
+  const row = document.getElementById('edit-album-row');
+  if (track) {
+    track.style.background = isSingle ? 'var(--color-primary)' : 'var(--color-surface-container-highest)';
+    const knob = track.querySelector('span');
+    if (knob) {
+      knob.style.left = isSingle ? '23px' : '3px';
+      knob.style.background = isSingle ? 'var(--color-on-primary)' : 'var(--color-outline)';
+    }
+  }
+  if (row) row.style.display = isSingle ? 'none' : 'flex';
+  // store intent on the checkbox element so saveSongEdit can read it
+  const cb = document.getElementById('edit-song-single');
+  if (cb) cb.dataset.pendingUnlink = isSingle ? '1' : '0';
+}
+
+async function pickAlbumForSong(sid) {
+  const albums = S.albums.filter(a => a.id);
+  if (!albums.length) return;
+  const song = S.library.find(s => s.id === sid);
+  showModal('pick album',
+    `<div style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;padding-right:4px">
+       ${albums.map(a => `
+         <div class="search-track mu-ripple" style="cursor:pointer" onclick="applyAlbumPick('${sid}','${a.id}','${esc(a.title||'')}')">
+           ${a.cover_path ? `<img src="/cover-album/${a.id}" alt="" style="width:40px;height:40px;border-radius:var(--radius-sm);object-fit:cover;flex-shrink:0">` : '<div style="width:40px;height:40px;border-radius:var(--radius-sm);background:var(--color-surface-container-high);flex-shrink:0"></div>'}
+           <div class="search-track-info" style="min-width:0">
+             <div class="search-track-title">${esc(a.title||'')}</div>
+             <div class="search-track-artist">${esc(a.artist||'')}</div>
+           </div>
+         </div>`).join('')}
+     </div>`,
+    `<button class="btn btn-out mu-ripple" onclick="editSong('${sid}')">back</button>`
+  );
+}
+
+function applyAlbumPick(sid, albumId, albumTitle) {
+  // store selection, go back to edit modal
+  const song = S.library.find(s => s.id === sid);
+  if (!song) return;
+  song._pendingAlbumId = albumId;
+  editSong(sid);
+  // re-check single toggle off since we just picked an album
+  const cb = document.getElementById('edit-song-single');
+  if (cb) { cb.checked = false; cb.dataset.pendingUnlink = '0'; }
+  const nameEl = document.getElementById('edit-album-name');
+  if (nameEl) nameEl.textContent = albumTitle;
+  toggleSingleMode(sid, false);
 }
 
 async function saveSongEdit(sid) {
