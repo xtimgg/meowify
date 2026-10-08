@@ -15900,6 +15900,8 @@ function _wavyAnimTickInner(dtMs, _skipDom) {
 }
 
 function initWavySeekbar() {
+  if (CFG.wavy_seekbar) _startSharedAnim();
+  _syncMobNpCtrls();
   const flat = document.getElementById('progbar');
   const wavy = document.getElementById('wavy-seek-wrap');
   if (!flat || !wavy) return;
@@ -17081,6 +17083,19 @@ function toggleNowPlaying() {
 // initMobNpSeek() is called only inside the shell render path and is itself
 // idempotent (flag-guarded), so it's safe to call from _syncSidebarsToMode too.
 
+function _mobNpCtrlsStale() {
+  if (!isMobile() || !document.getElementById('mob-np-bplay')) return false;
+  return !!document.getElementById('mob-np-wavy-wrap') !== !!CFG.wavy_seekbar
+      || !!document.getElementById('mob-np-spiky-canvas') !== (CFG.spiky_play_btn !== false);
+}
+let _mobNpSyncing = false;
+function _syncMobNpCtrls() {
+  if (_mobNpSyncing || !S.nowPlayingOpen || !S.cur || !_mobNpCtrlsStale()) return;
+  _mobNpSyncing = true;
+  try { renderNowPlaying(); } finally { _mobNpSyncing = false; }
+  _startSharedAnim();
+}
+
 function renderNowPlaying() {
   if (!S.nowPlayingOpen) return;
   const body = document.getElementById('nowplaying-body');
@@ -17289,7 +17304,7 @@ function renderNowPlaying() {
   // full shell rebuild when: no shell yet, OR mobile-controls presence doesn't
   // match the current layout (breakpoint switched mid-session)
   const _existMobCtrls = !!body.querySelector('.mob-np-controls');
-  const _needsShell    = !_existCovInner || (_existMobCtrls !== isMobile());
+  const _needsShell    = !_existCovInner || (_existMobCtrls !== isMobile()) || _mobNpCtrlsStale();
   if (!_needsShell) {
     // panel already rendered - do targeted updates to avoid full-innerHTML flash
     if (_npCovSrc) {
@@ -20387,6 +20402,7 @@ function _frameRate(rate) {
   }
 
   function updateSpikyBtn() {
+    _syncMobNpCtrls();
     const canvas = document.getElementById('playbtn-spiky-canvas');
     if (!canvas) return;
 
