@@ -20978,13 +20978,20 @@ class VirtualList {
     this._scroller.addEventListener('touchstart', clear, {once: true, passive: true});
     this._scroller.addEventListener('wheel', clear, {once: true, passive: true});
     clearTimeout(this._pendingT);
-    this._pendingT = setTimeout(clear, 900);
+    this._pendingT = setTimeout(clear, 1500);
+    clearTimeout(this._pendingRetryT);
+    this._pendingRetryT = setTimeout(() => { if (this._probed) this._applyPending(); }, 400);
     if (this._probed) this._applyPending();
   }
 
   _applyPending() {
     if (this._pendingIdx == null || !this._scroller) return;
     this._remeasure();
+    this._scrollToPending();
+  }
+
+  _scrollToPending() {
+    if (this._pendingIdx == null || !this._scroller || !this._inner || !this._inner.isConnected) return;
     this._scroller.scrollTo({top: this._scrollerOffset + this._pendingIdx * this.ROW_H, behavior: 'instant'});
     this._rendered = {start: -1, end: -1};
     this._render();
@@ -21003,6 +21010,7 @@ class VirtualList {
     const sr = this._scroller.getBoundingClientRect();
     const cr = this.container.getBoundingClientRect();
     this._scrollerOffset = this._scroller.scrollTop + (cr.top - sr.top) / z;
+    if (this._pendingIdx != null && this._probed) this._scrollToPending();
     this._zoom = z;
   }
 
