@@ -12655,6 +12655,7 @@ function initMobNpSeek(){
   }
   // shell was rebuilt - invalidate wavy element cache and width so next tick re-fetches
   _mnwWrap = null; _mnwTrack = null; _mnwFill = null; _mnwThumb = null; _mnwSvg = null;
+  _mnwLastPrimary = ''; _mnwLastTrack = '';
   _mobNpWavyW = 0;
 }
 
@@ -15653,6 +15654,8 @@ function _updateMobNpWavy(prog) {
     _mnwThumb = document.getElementById('mob-np-wavy-thumb');
     _mnwSvg   = document.getElementById('mob-np-wavy-svg');
     _mobNpWavyW = 0; // force re-measure after re-fetch
+    _mnwLastPrimary = '';
+    _mnwLastTrack = '';
   }
   const wrap = _mnwWrap, trackPath = _mnwTrack, fillPath = _mnwFill;
   if (!wrap || !trackPath || !fillPath || !_mnwSvg) return;
