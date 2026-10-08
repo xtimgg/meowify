@@ -12802,7 +12802,7 @@ function _readColWidth(tableEl,colKey){
   if(!header)return null;
   const cell=header.querySelector(`.list-hcol[data-col="${colKey}"]`);
   if(!cell)return null;
-  const w=Math.round(cell.getBoundingClientRect().width/(_zoom||1));
+  const w=Math.round(cell.getBoundingClientRect().width);
   return w>0?w:null;
 }
 function startColResize(e,leftKey,rightKey){
@@ -18714,7 +18714,7 @@ function startQueueResize(e) {
   _qResizing = true;
   _qResizeStartX = e.clientX;
   const qs = document.getElementById('queue-sidebar');
-  _qResizeStartW = qs.getBoundingClientRect().width / (_zoom || 1);
+  _qResizeStartW = qs.offsetWidth;
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
@@ -18752,7 +18752,7 @@ function startNowPlayingResize(e) {
   _npResizing = true;
   _npResizeStartX = e.clientX;
   const np = document.getElementById('nowplaying-sidebar');
-  _npResizeStartW = np.getBoundingClientRect().width / (_zoom || 1);
+  _npResizeStartW = np.offsetWidth;
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
@@ -18789,7 +18789,7 @@ function startLyricsResize(e) {
   _lResizing = true;
   _lResizeStartX = e.clientX;
   const ls = document.getElementById('lyrics-sidebar');
-  _lResizeStartW = ls.getBoundingClientRect().width / (_zoom || 1);
+  _lResizeStartW = ls.offsetWidth;
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
