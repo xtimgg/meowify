@@ -10120,7 +10120,7 @@ svg {overflow: visible}
     margin-top:16px;
     display:flex;
     flex-direction:column;
-    gap:6px;
+    gap:8px;
     flex-shrink:0;
   }
   .mob-np-prog-row{
@@ -10184,13 +10184,10 @@ svg {overflow: visible}
   }
   /* no-spiky fallback: plain circle */
   .mob-np-playbtn .mob-np-plain-circle{
-    position:absolute;width:60px;height:60px;border-radius:50%;
+    position:absolute;width:55px;height:55px;border-radius:50%;
     background:var(--color-on-surface);
     z-index:0;
     transition:transform .3s var(--ease-spring-soft),opacity .3s;
-  }
-  .mob-np-playbtn.playing .mob-np-plain-circle{
-    transform:scale(1.08);
   }
   /* drag handle zone + pip: styles in motionui/components.css (.mob-sheet-handle-zone / .mob-sheet-handle) */
   /* queue inner needs bottom padding for player bar */
@@ -12805,7 +12802,7 @@ function _readColWidth(tableEl,colKey){
   if(!header)return null;
   const cell=header.querySelector(`.list-hcol[data-col="${colKey}"]`);
   if(!cell)return null;
-  const w=Math.round(cell.getBoundingClientRect().width);
+  const w=Math.round(cell.getBoundingClientRect().width/(_zoom||1));
   return w>0?w:null;
 }
 function startColResize(e,leftKey,rightKey){
@@ -18717,7 +18714,7 @@ function startQueueResize(e) {
   _qResizing = true;
   _qResizeStartX = e.clientX;
   const qs = document.getElementById('queue-sidebar');
-  _qResizeStartW = qs.offsetWidth;
+  _qResizeStartW = qs.getBoundingClientRect().width / (_zoom || 1);
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
@@ -18726,7 +18723,7 @@ function _queueResizeMouseMove(e) {
   if (!_qResizing) return;
   const qs = document.getElementById('queue-sidebar');
   if (!qs) return;
-  const delta = _qResizeStartX - e.clientX;
+  const delta = (_qResizeStartX - e.clientX) / (_zoom || 1);
   const newW = Math.max(Q_MIN_W, Math.min(Q_MAX_W, _qResizeStartW + delta));
   qs.style.width = newW + 'px';
   qs.style.transition = 'none';
@@ -18755,7 +18752,7 @@ function startNowPlayingResize(e) {
   _npResizing = true;
   _npResizeStartX = e.clientX;
   const np = document.getElementById('nowplaying-sidebar');
-  _npResizeStartW = np.offsetWidth;
+  _npResizeStartW = np.getBoundingClientRect().width / (_zoom || 1);
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
@@ -18764,7 +18761,7 @@ function _nowplayingResizeMouseMove(e) {
   if (!_npResizing) return;
   const np = document.getElementById('nowplaying-sidebar');
   if (!np) return;
-  const delta = _npResizeStartX - e.clientX;
+  const delta = (_npResizeStartX - e.clientX) / (_zoom || 1);
   const newW = Math.max(NP_MIN_W, Math.min(NP_MAX_W, _npResizeStartW + delta));
   np.style.width = newW + 'px';
   np.style.transition = 'none';
@@ -18792,7 +18789,7 @@ function startLyricsResize(e) {
   _lResizing = true;
   _lResizeStartX = e.clientX;
   const ls = document.getElementById('lyrics-sidebar');
-  _lResizeStartW = ls.offsetWidth;
+  _lResizeStartW = ls.getBoundingClientRect().width / (_zoom || 1);
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
@@ -18801,7 +18798,7 @@ function _lyricsResizeMouseMove(e) {
   if (!_lResizing) return;
   const ls = document.getElementById('lyrics-sidebar');
   if (!ls) return;
-  const delta = _lResizeStartX - e.clientX;
+  const delta = (_lResizeStartX - e.clientX) / (_zoom || 1);
   const newW = Math.max(L_MIN_W, Math.min(L_MAX_W, _lResizeStartW + delta));
   ls.style.width = newW + 'px';
   ls.style.transition = 'none';
@@ -27232,7 +27229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const defL=COL_DEFS[_dragCol];
     if(!defL)return;
     if(!S.colWidths)S.colWidths={};
-    const rawDelta=e.clientX-_dragStartX;
+    const rawDelta=(e.clientX-_dragStartX)/(_zoom||1);
     if(Math.abs(rawDelta)>3)_dragMoved=true;
     const defR=_dragColRight?COL_DEFS[_dragColRight]:null;
     const minL=defL.min||24;
