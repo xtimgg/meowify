@@ -17031,6 +17031,16 @@ function _closeAllMobSheets() {
   hideCtx();
 }
 
+function _scrollQueueToCurrent() {
+  const inner = document.getElementById('queue-inner');
+  if (!inner || !S.queue.length) return;
+  if (_qvlist) { _qvlist.scrollToIndex(Math.max(0, S.qi || 0)); return; }
+  const row = inner.querySelector('.song-row.playing') || inner.querySelectorAll('.song-row')[Math.max(0, S.qi || 0)];
+  if (!row) return;
+  const z = _zoom || 1;
+  inner.scrollTo({ top: inner.scrollTop + (row.getBoundingClientRect().top - inner.getBoundingClientRect().top) / z, behavior: 'instant' });
+}
+
 function toggleQueue() {
   S.queueOpen = !S.queueOpen;
   if (S.queueOpen) {
@@ -17039,11 +17049,7 @@ function toggleQueue() {
     document.getElementById('bqueue').classList.add('active');
     if (isMobile()) _openMobSheet('queue');
     renderQueueSidebar();
-    requestAnimationFrame(() => {
-      const inner = document.getElementById('queue-inner');
-      const cur = inner?.querySelector('.song-row.playing');
-      if (cur) cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    });
+    _scrollQueueToCurrent();
   } else {
     _closeSidebarState('queue');
   }
@@ -20936,6 +20942,7 @@ class VirtualList {
       }
       this._probed = true;
       this._render();
+      this._applyPending();
       // on mobile (chaquopy android webview), fonts and system text scaling
       // may not be fully applied by the first rAF - re-probe after 350ms and
       // correct ROW_H if the measured height differs from what we got above
@@ -20957,10 +20964,30 @@ class VirtualList {
             _self._nodes.forEach(el => el.remove());
             _self._nodes.clear();
             _self._render();
+            _self._applyPending();
           }
         }, 350);
       }
     });
+  }
+
+  scrollToIndex(i) {
+    if (!this.songs.length) return;
+    this._pendingIdx = Math.max(0, Math.min(this.songs.length - 1, i));
+    const clear = () => { this._pendingIdx = null; };
+    this._scroller.addEventListener('touchstart', clear, {once: true, passive: true});
+    this._scroller.addEventListener('wheel', clear, {once: true, passive: true});
+    clearTimeout(this._pendingT);
+    this._pendingT = setTimeout(clear, 900);
+    if (this._probed) this._applyPending();
+  }
+
+  _applyPending() {
+    if (this._pendingIdx == null || !this._scroller) return;
+    this._remeasure();
+    this._scroller.scrollTo({top: this._scrollerOffset + this._pendingIdx * this.ROW_H, behavior: 'instant'});
+    this._rendered = {start: -1, end: -1};
+    this._render();
   }
 
   // build a single row element for index i
